@@ -1,6 +1,7 @@
 import numpy as np
 from pydace import dacefit
 
+
 def distribute_data(doe_data: np.ndarray, options: dict):
     """Sets up the data into proper variables for surrogate construction. The constrains are rearranged to c_i(x) < 0
 
@@ -105,6 +106,8 @@ def build_surrogate(input_data: np.ndarray, obs_data: np.ndarray, options: dict,
     opt_hyper: list
         Whether or not to optimize the hyperparameters of the surrogate model. Default is empty (perform optimization).
         If the hyperparameters are specified (non-empty list) the surrogates are built without performing optimization.
+        The specification format should be a m-by-n list where m is the number of input dimensions and n is the number
+        of output dimensions.
 
     Returns
     -------
@@ -129,8 +132,15 @@ def build_surrogate(input_data: np.ndarray, obs_data: np.ndarray, options: dict,
     else:
         opt_hyper = np.asarray(opt_hyper)
 
-        if opt_hyper.ndim != 1:
-            raise ValueError("opt_hyper has be a 1D list.")
+        if opt_hyper.ndim == 2:
+            m, n = opt_hyper.shape
+
+            if m != input_data.shape[1]:
+                raise ValueError("The number of dimensions of the hyperparameters  has to be the same as the input "
+                                 "array.")
+
+            if n != obs_data.shape[1]:
+                raise ValueError("The number of hyperparameters  has to be the same as the output array.")
 
     _, ndim_des = input_data.shape
     theta0 = np.ones((ndim_des,))
@@ -147,9 +157,9 @@ def build_surrogate(input_data: np.ndarray, obs_data: np.ndarray, options: dict,
             krmodel.append(krPH)
             perf.append(perfPH)
 
-    else:  # hyperparameters specified, perform optimization
+    else:  # hyperparameters specified, do not perform optimization
         for i in range(ndim_sur):
-            krPH, perfPH = dacefit(input_data, obs_data[:, i], reg_model, cor_model, theta0, lob=lb_theta, upb=ub_theta)
+            krPH, perfPH = dacefit(input_data, obs_data[:, i], reg_model, cor_model, opt_hyper[:, i])
             krmodel.append(krPH)
             perf.append(perfPH)
 
