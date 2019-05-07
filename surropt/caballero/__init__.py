@@ -2,7 +2,7 @@ import numpy as np
 import scipy.spatial as spatial
 
 from surropt.utils import distribute_data, build_surrogate
-from surropt.optimizers import optimize_nlp
+# from surropt.optimizers import optimize_nlp
 
 
 def caballero(doe_initial: np.ndarray, options: dict):
