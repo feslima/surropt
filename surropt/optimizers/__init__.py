@@ -1,10 +1,23 @@
 import numpy as np
-# import ipopt
+import logging
 
 from surropt.caballero.problem import CaballeroProblem
 from surropt.optimizers.utils import __check_vector_input, __set_options_structure, __empty_nonlcon, __bnd2cf, \
-    __qp_solve, __linesearch
+    __qp_solve, __linesearch, __constraint_function_check, __objective_function_check
 from surropt.utils.matrixdivide import mrdivide
+from tests_ import OPTIMIZERS_PATH
+
+# module variables
+LOG_OFF = False  # flag to turn on loggin of iterations
+
+# logger configuration
+LOG_LEVEL = logging.DEBUG
+LOG_FORMAT = "%(levelname)s - %(message)s"
+logging.basicConfig(filename=OPTIMIZERS_PATH / "sqp_log.log",
+                    level=LOG_LEVEL,
+                    format=LOG_FORMAT,
+                    filemode='w')
+logger = logging.getLogger()
 
 
 def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray, solver=None):
@@ -65,9 +78,7 @@ def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray, lb: np.ndarray,
     return x, fval, exitflag
 
 
-# TODO: (06/05/2019) test the SQP routine.
-# TODO: (07/05/2019) assert constraint to return arrays even when there is a single constraint
-def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=None, options: dict =None):
+def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=None, options: dict=None):
     """
     This SQP implementation is the one described by [1]_ and implemented in Octave optimization toolbox.
 
@@ -212,40 +223,49 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=Non
 
     Call the solver
 
-    >>> x, fval, exitflag, nfunevals, lagrange_mult, iterations = utils(objective, x0, constraints)
+    >>> x, fval, exitflag, nfunevals, lagrange_mult, iterations = sqp(objective, x0, constraints)
 
     The values are:
 
     - x = [-1.71714352  1.59570964  1.82724584 -0.76364308 -0.76364308]
     - fval = 0.05394985
     - exitflag = 2
-    - nfunevals = 8
+    - nfunevals = 9
     - lagrange_mult['eq'] = [-0.04016275 0.03795778 -0.00522259]
-    - iterations = 6
+    - iterations = 7
 
 
     """
 
+    if LOG_OFF:
+        logger.disabled = True
+
     # check input vectors x0, lb, ub
     x0, lb, ub = __check_vector_input(x0, lb, ub)
+
+    logger.debug("Initial estimate (x0) - " + np.array2string(x0, precision=4, separator=',', suppress_small=True))
+    logger.debug("Iter #\t|\tx_i\t|\tp_i\t|\tfval")
+
+    # check the objective function
+    __objective_function_check(objfun, x0)
 
     # check options dictionary
     maxiter, maxfunevals, tolstep, tolopt, tolcon, qpsolver = __set_options_structure(options, x0)
 
-    # check constraints
     # check if any confun parameters is coming as None (withtout constraints) and make it a empty handle
     if confun is None:
         confun = __empty_nonlcon()
 
-    # __constraint_function_check(confun, x0)
+    # check constraints
+    __constraint_function_check(confun, x0)
 
     lbgrad = np.eye(x0.size)
     ubgrad = - lbgrad
 
     lbidx = lb != - np.inf
     ubidx = ub != np.inf
-    lbgrad = lbgrad[lbidx.flatten(), :]
-    ubgrad = ubgrad[ubidx.flatten(), :]
+    lbgrad = lbgrad[lbidx, :]
+    ubgrad = ubgrad[ubidx, :]
 
     # Transform bounds into inequality constraints
     confun = lambda xv, fun=confun: __bnd2cf(xv, lbidx, ubidx, lb, ub, np.vstack((lbgrad, ubgrad)), fun)
@@ -271,7 +291,7 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=Non
 
     # Choose an initial lambda
 
-    lambdav = 100 * np.ones((ce.size + ci.size, 1))
+    lambdav = 100 * np.ones((ce.size + ci.size,))
 
     iteration = 0
 
@@ -303,8 +323,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=Non
         p, qpfval, qpexflag, lambdadict = __qp_solve(B, c, -C, ci, -F, ce, x0=x, solver=qpsolver)
 
         if qpexflag == 1:
-            lambdav[:nr_f, 0] = lambdadict['eq']
-            lambdav[nr_f:, 0] = lambdadict['ineq']
+            lambdav[:nr_f] = lambdadict['eq']
+            lambdav[nr_f:] = lambdadict['ineq']
         else:
             lambdav = lambda_old.copy()
 
@@ -327,7 +347,9 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=Non
         # Check if step size is too small
         if np.linalg.norm(delx) < tolstep * np.linalg.norm(x):
             # Check for minimum constraint violation
-            if np.linalg.norm(np.vstack((ce_new, ci_new)), -np.inf) < tolcon:
+            if np.vstack((ce_new, ci_new)).size == 0 or np.linalg.norm(np.vstack((ce_new, ci_new)), -np.inf) < tolcon:
+                # the first verification is for cases when there are no constraints, so there is no exception when using
+                # the -Inf norm (see: https://github.com/numpy/numpy/issues/3763)
                 exitflag = 2  # Step size is too small and constraint violation
                 # is less than minimum constraint violation
             else:
@@ -341,9 +363,9 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=Non
             exitflag = 0
             break
 
-        delxt = delx.conj().T
+        delxt = delx[:, np.newaxis].conj().T
 
-        d1 = delxt @ B @ delx
+        d1 = (delxt @ B @ delx).item()  # the item is to guarantee that the result is a scalar
 
         t1 = 0.2 * d1
         t2 = delxt @ y
@@ -355,14 +377,22 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=Non
 
         r = theta * y + (1 - theta) * B @ delx
 
-        d2 = delxt @ r
+        d2 = (delxt @ r).item()
 
         if d1 == 0 or d2 == 0:
             exitflag = -1  # BFGS Update failed
             break
 
-        B = B - mrdivide((B @ delx @ delxt @ B), d1) + mrdivide((r @ r.conj().T), d2)
+        # the new axis is to regularize the algebraic vector operations (r and delx are column vectors)
+        B = B - mrdivide(B @ delx[:, np.newaxis] @ delxt @ B, d1) + \
+            mrdivide(r[:, np.newaxis] @ r[:, np.newaxis].conj().T, d2)
 
+        logger.debug("{0} |\t{1} |\t{2} |\t{3}".
+                     format(iteration, np.array2string(x.flatten(), precision=4, separator=',', suppress_small=True),
+                            np.array2string(p.flatten(), precision=4, separator=',', suppress_small=True),
+                            obj
+                            )
+                     )
         # Update new values
         x = x_new
         obj = obj_new
@@ -380,6 +410,5 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=Non
 
     nevals = globalls['nevals']
 
-    x = x.reshape(1, -1)  # Force to be row vector
-    return x, obj, exitflag, nevals, lambdav, iteration
-    # end utils
+    return {'x': x, 'fval': obj, 'exitflag': exitflag, 'lambda': lambdav, 'iterations': iteration}
+    # end sqp

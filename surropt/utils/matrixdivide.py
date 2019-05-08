@@ -67,7 +67,7 @@ def mrdivide(B, A):
 
     """
 
-    if (A.shape[0] == 1 and A.shape[1] == 1) or (B.shape[0] == 1 and B.shape[1] == 1):
+    if isinstance(A, (float, int)) or A.size == 1 or isinstance(B, (float, int)) or B.size == 1:
         # perform element wise division, since one or both of inputs are scalar
         return B / A
 

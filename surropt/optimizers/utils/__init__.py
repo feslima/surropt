@@ -110,18 +110,20 @@ def __bnd2cf(x, lbidx, ubidx, lb, ub, bnds_grad, nonlcon):
     return cif, cef, cigf, cegf
 
 
-# Check inputs auxiliaries
+# Check inputs auxiliaries (sanitize input vectors by enforcing them to be 1D vectors of same size)
 def __check_vector_input(x0, lb, ub):
     # if any of the bounds is set to None, make them a infinity vector
     if lb is None:
-        lb = - np.ones((x0.size, 1)) * np.inf
+        lb = - np.ones((x0.size, )) * np.inf
+    else:
+        lb = lb.flatten()
 
     if ub is None:
-        ub = np.ones((x0.size, 1)) * np.inf
+        ub = np.ones((x0.size, )) * np.inf
+    else:
+        ub = ub.flatten()
 
-    x0 = x0.reshape(-1, 1)  # force to be column
-    lb = lb.reshape(-1, 1)
-    ub = ub.reshape(-1, 1)
+    x0 = x0.flatten()  # force to be 1D array
 
     if x0.size != lb.size or x0.size != ub.size:
         ValueError("x0, lb and ub has to have the same number of elements.")
@@ -213,16 +215,55 @@ def __set_options_structure(options, x0):
         ValueError("options argument has to be a dictionary.")
 
 
+def __objective_function_check(objfun, x0: np.ndarray):
+    if callable(objfun):
+        obj, gradobj = objfun(x0)
+
+        if not isinstance(obj, np.ndarray):
+            obj = np.asarray(obj)
+
+        if not isinstance(gradobj, np.ndarray):
+            gradobj = np.asarray(gradobj)
+
+        if obj.size != 1:
+            ValueError("The objective function evaluation must return a single value (scalar)")
+
+        if gradobj.ndim > 1 or gradobj.size == 0 or gradobj.size != x0.size:
+            ValueError("The gradient evaluation has to return a (non-empty) 1D array of the same size as x0.")
+    else:
+        TypeError("Objective function and its gradient must be a callable function")
+
+
 def __constraint_function_check(confun, x0):
     if callable(confun):  # if confun is a callable function
         cif_eval, cef_eval, cigf_eval, cegf_eval = confun(x0)
 
-        # check if constraint functions are returning column vectors
-        if not (cif_eval.ndim == 2 and cif_eval.shape[1] == 1 or cif_eval.shape[1] == 0) and cif_eval.size != 0:
-            ValueError("Inequality constraint function must return a column array.")
+        if not isinstance(cif_eval, np.ndarray):
+            cif_eval = np.asarray(cif_eval)  # convert to numpy array
 
-        if not (cef_eval.ndim == 2 and cef_eval.shape[1] == 1 or cef_eval.shape[1] == 0) and cef_eval.size != 0:
-            ValueError("Equality constraint function must return a column array.")
+        if not isinstance(cef_eval, np.ndarray):
+            cef_eval = np.asarray(cef_eval)
+
+        if not isinstance(cigf_eval, np.ndarray):
+            cigf_eval = np.asarray(cigf_eval)
+
+        if not isinstance(cegf_eval, np.ndarray):
+            cegf_eval = np.asarray(cegf_eval)
+
+        # check if constraint functions are returning column vectors
+        if cif_eval.ndim != 2:  # 2D
+            ValueError("Inequality constraint function must return a 2D array. The current function is returning "
+                       f"{cif_eval.ndim} dimension(s)")
+        else:
+            if cif_eval.shape[1] == 1 or cif_eval.shape[1] == 0:
+                ValueError("Inequality constraint function must return a column array.")
+
+        if cef_eval.ndim != 2:  # 2D
+            ValueError("Equality constraint function must return a 2D array. The current function is returning "
+                       f"{cef_eval.ndim} dimension(s)")
+        else:
+            if cef_eval.shape[1] == 1 or cef_eval.shape[1] == 0:
+                ValueError("Inequality constraint function must return a column array.")
 
         # check if the jacobian is specified without its corresponding function evaluation
         if (cif_eval.size == 0 and cigf_eval.size != 0) or (cef_eval.size == 0 and cegf_eval.size != 0):
@@ -321,7 +362,7 @@ def __qp_solve(H, f, A=None, b=None, Aeq=None, beq=None, x0=None, solver=None):
 
         sol = cvxqp(H, f, A, b, Aeq, beq, solver=solver, initvals=None)
 
-        x = np.array(sol['x'])
+        x = np.array(sol['x']).flatten()
         fval = sol['primal objective']
 
         if sol['status'] == 'optimal':
