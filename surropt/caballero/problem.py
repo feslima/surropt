@@ -34,3 +34,50 @@ class CaballeroProblem(object):
             gc[[i], :] = gc_col.reshape(1, -1)
 
         return gc
+
+
+def objective_prediction(x, surrmodel):
+    """Function objective prediction for optimization. Only accepts pydace surrogate models.
+    Parameters
+    ----------
+    x : ndarray
+        Input variable vector.
+    surrmodel : dict
+        pydace surrogate model.
+
+    Returns
+    -------
+    f : float
+        Objective function evaluation for given `x`.
+    g : ndarray
+        Gradient column vector evaluation for given `x`.
+    """
+    f, g, *_ = predictor(x, surrmodel, compute_jacobian='yes')
+
+    return f, g.reshape(-1, 1)
+
+
+def constraint_prediction(x, surrmodel):
+    """Constraint function for optimization. Only accepts pydace surrogate models.
+    Parameters
+    ----------
+    x : ndarray
+        Input variable vector.
+    surrmodel : list
+        pydace surrogate model.
+
+    Returns
+    -------
+    f : float
+        Objective function evaluation for given `x`.
+    g : ndarray
+        Gradient column vector evaluation for given `x`.
+    """
+    c = np.zeros((len(surrmodel), 1))  # has to be a column array
+    gc = np.zeros((len(surrmodel), x.size))  # m-by-n array (n is number of variables and m is number of constraints)
+    for i in np.arange(len(surrmodel)):
+        ph = predictor(x, surrmodel[i], compute_jacobian='yes')[:2]
+        c[i, 0] = ph[0]
+        gc[[i], :] = ph[1].reshape(-1)
+
+    return c, np.array([[]]), gc, np.array([[]])

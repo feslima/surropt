@@ -1,7 +1,14 @@
 import numpy as np
 import logging
 
-from surropt.caballero.problem import CaballeroProblem
+try:
+    import ipopt
+except ImportError:
+    HAS_IPOPT = False
+else:
+    HAS_IPOPT = True
+
+from surropt.caballero.problem import CaballeroProblem, objective_prediction, constraint_prediction
 from surropt.optimizers.utils import __check_vector_input, __set_options_structure, __empty_nonlcon, __bnd2cf, \
     __qp_solve, __linesearch, __constraint_function_check, __objective_function_check
 from surropt.utils.matrixdivide import mrdivide
@@ -36,7 +43,7 @@ def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray, lb: np.ndarray,
     ub : ndarray
         Upper bound of variables in the NLP problem.
     solver : str
-        Type of NLP solver to be used. Default is None, which corresponds to IpOpt solver.
+        Type of NLP solver to be used. Default is None, which corresponds to SQP active-set solver.
 
     Returns
     -------
@@ -45,7 +52,7 @@ def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray, lb: np.ndarray,
         exit flag (third). The exit flag assumes two values: 0 for failure of convergence, 1 for success.
     """
 
-    if solver is None or solver == 'ipopt':
+    if HAS_IPOPT and solver == 'ipopt':
         nlp = ipopt.problem(
             n=x0.size,
             m=len(con_surr),
@@ -72,13 +79,19 @@ def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray, lb: np.ndarray,
         else:
             exitflag = 0  # ipopt failed. See IpReturnCodes_inc.h for complete list of flags
 
+    elif solver is None or solver == 'sqp':
+        sol = sqp(lambda xv: objective_prediction(xv, obj_surr), x0,
+                  lambda xv: constraint_prediction(xv, con_surr), lb=lb, ub=ub)
+        x = sol['x']
+        fval = sol['fval']
+        exitflag = sol['exitflag']
     else:
         NotImplementedError("NLP solver not implemented.")
 
     return x, fval, exitflag
 
 
-def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=None, options: dict=None):
+def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=None, options: dict = None):
     """
     This SQP implementation is the one described by [1]_ and implemented in Octave optimization toolbox.
 
@@ -115,26 +128,28 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable=None, lb=None, ub=Non
 
     Returns
     -------
-    x : numpy.array
-        Local solution if `exitflag` is positive.
-    fval : double
-        Objective function value at the solution `x`.
-    exitflag : int
-        Convergence flag. Values are:
-        - 1 : First-order optimality measure is less than `options`['tolopt'] and minimum constraint violation was less
-              than `options`['tolcon'].
-        - 2 : Step size is less than `options`['tolstep'] and minimum constraint violation was less than
-              `options`['tolcon'].
-        - 0 : Maximum number of iterations achieved.
-        - -1 : BFGS update failed.
-        - -2 : Step size is less than `options`['tolstep']. However there still is some significant constraint
-               violation.
-    nevals : int
-        Number of objective function evaluation.
-    lambda : dict
-        Dictionary containing equality ('eq') and inequality ('ineq') Lagrange multipliers at the solution `x`.
-    iterations : int
-        Number of iterations performed by the algorithm.
+    sol : dict
+        Solution dictionary containing the fields:
+        'x' : numpy.array
+            Local solution if `exitflag` is positive.
+        'fval' : double
+            Objective function value at the solution `x`.
+        'exitflag' : int
+            Convergence flag. Values are:
+            - 1 : First-order optimality measure is less than `options`['tolopt'] and minimum constraint violation was less
+                  than `options`['tolcon'].
+            - 2 : Step size is less than `options`['tolstep'] and minimum constraint violation was less than
+                  `options`['tolcon'].
+            - 0 : Maximum number of iterations achieved.
+            - -1 : BFGS update failed.
+            - -2 : Step size is less than `options`['tolstep']. However there still is some significant constraint
+                   violation.
+        'nevals' : int
+            Number of objective function evaluation.
+        'lambda' : dict
+            Dictionary containing equality ('eq') and inequality ('ineq') Lagrange multipliers at the solution `x`.
+        'iterations' : int
+            Number of iterations performed by the algorithm.
 
     Raises
     ------

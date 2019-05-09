@@ -2,7 +2,7 @@ import numpy as np
 import scipy.spatial as spatial
 
 from surropt.utils import distribute_data, build_surrogate
-# from surropt.optimizers import optimize_nlp
+from surropt.optimizers import optimize_nlp
 
 
 def caballero(doe_initial: np.ndarray, options: dict):
@@ -10,27 +10,32 @@ def caballero(doe_initial: np.ndarray, options: dict):
     # 0 - converged successfully
     # 1 - maximum number of function evaluations achieved and a feasible point was found
 
-    if 'tol1' not in options.keys():
+    if 'nlp_solver' not in options:
+        raise KeyError("Non-linear optimizer not defined in options dictionary")
+    else:
+        nlp_solver = options['nlp_solver']
+
+    if 'tol1' not in options:
         raise KeyError("First contraction tolerance specification not found in options dictionary.")
     else:
         tol1 = options['tol1']
 
-    if 'tol2' not in options.keys():
+    if 'tol2' not in options:
         raise KeyError("Second contraction tolerance specification not found in options dictionary.")
     else:
         tol2 = options['tol2']
 
-    if 'con_tol' not in options.keys():
+    if 'con_tol' not in options:
         raise KeyError("Constraint tolerance specification not found in options dictionary.")
     else:
         con_tol = options['con_tol']
 
-    if 'max_fun_evals' not in options.keys():
+    if 'max_fun_evals' not in options:
         raise KeyError("Maximum function evaluations specification not found in options dictionary.")
     else:
         max_fun_evals = options['max_fun_evals']
 
-    if not all([v in options.keys() for v in ['input_lb', 'input_ub']]):
+    if not all([v in options for v in ['input_lb', 'input_ub']]):
         raise KeyError("Either lower or upper bounds for input variables is not specified.")
     else:
         lb = np.asarray(options['input_lb']).flatten()
@@ -72,7 +77,7 @@ def caballero(doe_initial: np.ndarray, options: dict):
     fun_evals = 0
 
     while True:
-        xjk, fjk, exitflag = optimize_nlp(obj_model, con_model, xjk, lbopt, ubopt, solver=None)
+        xjk, fjk, exitflag = optimize_nlp(obj_model, con_model, xjk, lbopt, ubopt, solver=nlp_solver)
 
         # check for maximum number of function evaluations
         if fun_evals >= max_fun_evals:

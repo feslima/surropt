@@ -21,7 +21,7 @@ def distribute_data(doe_data: np.ndarray, options: dict):
     """
 
     # perform a key check in options dictionary
-    if not all(v in options.keys() for v in ['input_index', 'obj_index', 'con_index']):
+    if not all(v in options for v in ['input_index', 'obj_index', 'con_index']):
         raise KeyError("Index data (either input, objective or constraint) not present as key in option dictionary.")
     else:
         inp_idx = np.asarray(options['input_index']).flatten()
@@ -34,7 +34,7 @@ def distribute_data(doe_data: np.ndarray, options: dict):
 
     else:
         # sanity check of constraint limit data
-        if not all(v in options.keys() for v in ['con_lb', 'con_ub']):
+        if not all(v in options for v in ['con_lb', 'con_ub']):
             raise KeyError("Constraint limit data missing (either lower or upper bounds)")
         else:  # constraint bounds
             con_lb = np.asarray(options['con_lb']).flatten()
@@ -117,12 +117,12 @@ def build_surrogate(input_data: np.ndarray, obs_data: np.ndarray, options: dict,
     """
 
     # sanity check
-    if 'reg_model' not in options.keys():
+    if 'reg_model' not in options:
         raise KeyError("Regression model not specified in options dictionary.")
     else:
         reg_model = options['reg_model']
 
-    if 'cor_model' not in options.keys():
+    if 'cor_model' not in options:
         raise KeyError("Correlation model not specified in options dictionary.")
     else:
         cor_model = options['cor_model']
