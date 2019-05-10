@@ -3,7 +3,7 @@
 function sqp_test_octave
   x0 = [-1.8 1.7 1.9 -0.8 -0.8]';
 
-  #[x, obj, info, iter, nf, lambda] = sqp(x0, @f, @g, [])
+  [x, obj, info, iter, nf, lambda] = sqp(x0, @f, @g, [])
   
   x0 = [1,5,5,1]';
   lb = 1.0 * ones(4,1);

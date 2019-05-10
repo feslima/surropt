@@ -24,7 +24,7 @@ def __linesearch(x, p, objfun, nonlcon, lambdav, obj, objgrad, globalls):
 
     c = objgrad
 
-    d, ce = nonlcon(x)[:2]
+    d, ce, *_ = nonlcon(x)
 
     # call the merit function
     phi_x_mu, obj, objgrad, globalls = __merit_fun(obj, objgrad, objfun, nonlcon, x, mu, globalls)
@@ -32,7 +32,7 @@ def __linesearch(x, p, objfun, nonlcon, lambdav, obj, objgrad, globalls):
     D_phi_x_mu = c.conj().T @ p  # directional derivative
 
     # only the elements of d corresponding to violated constraints should be included
-    idx = d < 0
+    idx = d > 0
     if idx.size != 0:
         t = - np.linalg.norm(np.vstack((ce, d[idx].reshape(-1, 1))), 1) / mu
     else:
@@ -60,9 +60,9 @@ def __linesearch(x, p, objfun, nonlcon, lambdav, obj, objgrad, globalls):
 
 # Merit function evaluation auxiliary routine
 def __merit_fun(obj, objgrad, objfun, nonlcon, x, mu, globalls):
-    ci, ce = nonlcon(x)[:2]
+    ci, ce, *_ = nonlcon(x)
 
-    idx = ci < 0  # indexes of negative (violated) constraints
+    idx = ci > 0  # indexes of negative (violated) constraints
 
     if idx.size != 0:
         con = np.vstack((ce, ci[idx].reshape(-1, 1)))
@@ -93,11 +93,11 @@ def __bnd2cf(x, lbidx, ubidx, lb, ub, bnds_grad, nonlcon):
         cegf = cegf.reshape(-1, x.size)  # same reshape logic as cef
 
     if cif_eval.size != 0:
-        cif = np.vstack((cif_eval, x[lbidx].reshape(-1, 1) - lb[lbidx].reshape(-1, 1),
-                         ub[ubidx].reshape(-1, 1) - x[ubidx].reshape(-1, 1)))
+        cif = np.vstack((cif_eval, lb[lbidx].reshape(-1, 1) - x[lbidx].reshape(-1, 1),
+                         x[ubidx].reshape(-1, 1) - ub[ubidx].reshape(-1, 1)))
     else:
-        cif = np.vstack((x[lbidx].reshape(-1, 1) - lb[lbidx].reshape(-1, 1),
-                         ub[ubidx].reshape(-1, 1) - x[ubidx].reshape(-1, 1)))
+        cif = np.vstack((lb[lbidx].reshape(-1, 1) - x[lbidx].reshape(-1, 1),
+                         x[ubidx].reshape(-1, 1) - ub[ubidx].reshape(-1, 1)))
 
         if cif.size == 0:  # boundless problem and without constraints
             cif = cif.reshape(-1, 1)  # to avoid concatenation problem

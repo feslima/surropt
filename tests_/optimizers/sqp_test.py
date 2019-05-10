@@ -46,12 +46,12 @@ def g(x):
 
 # -------------------------------------- HS71 --------------------------------------
 def hs71con(x):
-    ineq = np.array([[x[0]*x[1]*x[2]*x[3] - 25]])
+    ineq = np.array([[25 - x[0]*x[1]*x[2]*x[3]]])
     ineq_grad = np.zeros((1, 4))
-    ineq_grad[0, 0] = x[1] * x[2] * x[3]
-    ineq_grad[0, 1] = x[0] * x[2] * x[3]
-    ineq_grad[0, 2] = x[0] * x[1] * x[3]
-    ineq_grad[0, 3] = x[0] * x[1] * x[2]
+    ineq_grad[0, 0] = -x[1] * x[2] * x[3]
+    ineq_grad[0, 1] = -x[0] * x[2] * x[3]
+    ineq_grad[0, 2] = -x[0] * x[1] * x[3]
+    ineq_grad[0, 3] = -x[0] * x[1] * x[2]
 
     eq = np.array([[np.sum(np.multiply(x, x)) - 40]])
     eq_grad = np.zeros((1, 4))
@@ -92,12 +92,12 @@ def rosen_con(x):
 
 
 def rosen_con_ineq(x):
-    ineq = -x[0] - 2*x[1] + 1
+    ineq = x[0] + 2*x[1] - 1
     eq = np.array([[]])
 
     ineq_grad = np.zeros((1, 2))
-    ineq_grad[0, 0] = -1
-    ineq_grad[0, 1] = -2
+    ineq_grad[0, 0] = 1
+    ineq_grad[0, 1] = 2
 
     eq_grad = np.array([[]])
 

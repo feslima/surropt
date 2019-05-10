@@ -97,7 +97,7 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
 
     Min         f(x)
     subject to:
-                c_i(x) >= 0,  for i = 1, ..., n
+                c_i(x) <= 0,  for i = 1, ..., n
 
     where f(x) and c_i(x) are the objective and constraint functions
 
@@ -111,10 +111,10 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
         to be feasible.
     confun : callable
         Constraints and their Jacobian evaluation, both inequality and equality. See notes.
-    lb : numpy.array
+    lb : {None, numpy.array}
         Lower bounds. Same number of elements as `x0`. If any of the bounds arguments are set as None (default), it
         means that all elements of that bound are set as positive(upper bound)/negative(lower bound) infinity 1-D array.
-    ub : numpy.array
+    ub : {None, numpy.array}
         Upper bounds. If any of the bounds arguments are set as None (default), it means that all elements of that
         bound are set as positive(upper bound)/negative(lower bound) infinity 1-D array.
     options : dict
@@ -144,10 +144,11 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
             - -1 : BFGS update failed.
             - -2 : Step size is less than `options`['tolstep']. However there still is some significant constraint
                    violation.
-        'nevals' : int
+        'nfevals' : int
             Number of objective function evaluation.
         'lambda' : dict
-            Dictionary containing equality ('eq') and inequality ('ineq') Lagrange multipliers at the solution `x`.
+            Dictionary containing equality ('eq'), inequality ('ineq') and bounds ('lb', 'ub') Lagrange multipliers at
+            the solution `x`.
         'iterations' : int
             Number of iterations performed by the algorithm.
 
@@ -161,12 +162,12 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
 
     Notes
     -----
-        ** How to set the `objfun` object **
+        ** How to set the `objfun` function **
 
         The `objfun` object must return a tuple of two elements. The first being the objective function evaluation
         (float) and the second being a 2-D column array containing the gradient of objective function.
 
-        ** How to set the `confun` object **
+        ** How to set the `confun` function **
         The `confun` callable object must return a tuple of four elements. The first two elements are the evaluations
         of inequality and equality constraints, respectively, returned as 2-D column array. The third and fourth
         elements of this tuple are the Jacobian evaluation of equality and inequality constraints, respectively.
@@ -181,7 +182,76 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
 
     Examples
     --------
-    ** Equality constraint only and no bounds problem **
+    ** Single equality constraint, single inequality constraint and 4 bounds problem **
+
+    Define the objective function as:
+
+    >>> import numpy as np
+    >>> def objective(x):
+    ... # objective function - HS071 test problem
+    ... obj = x[0]*x[3]*(x[0]+x[1]+x[2])+x[2]
+    ...
+    ... # gradient
+    ... obj_grad = np.zeros((4,))
+    ... obj_grad[0] = x[0] * x[3] + x[3]*(x[0]+x[1]+x[2])
+    ... obj_grad[1] = x[0] * x[3]
+    ... obj_grad[2] = x[0] * x[3] + 1
+    ... obj_grad[3] = x[0]*(x[0]+x[1]+x[2])
+    ...
+    ... return obj, obj_grad
+
+    Constraints:
+
+    >>> def constraints(x):
+    ...
+    ... # define the inequality constraints
+    ... ineq = np.array([[25 - x[0]*x[1]*x[2]*x[3]]])
+    ... # define the inequality constraints Jacobian
+    ... ineq_grad = np.zeros((1, 4))
+    ... ineq_grad[0, 0] = -x[1] * x[2] * x[3]
+    ... ineq_grad[0, 1] = -x[0] * x[2] * x[3]
+    ... ineq_grad[0, 2] = -x[0] * x[1] * x[3]
+    ... ineq_grad[0, 3] = -x[0] * x[1] * x[2]
+    ...
+    ... # define the equality constraints
+    ... eq = np.array([[np.sum(np.multiply(x, x)) - 40]])
+    ... # define the equality constraints Jacobian
+    ... eq_grad = np.zeros((1, 4))
+    ... eq_grad[0, 0] = 2 * x[0]
+    ... eq_grad[0, 1] = 2 * x[1]
+    ... eq_grad[0, 2] = 2 * x[2]
+    ... eq_grad[0, 3] = 2 * x[3]
+    ...
+    ... return ineq, eq, ineq_grad, eq_grad
+
+    Initial estimate
+
+    >>> x0 = np.array([1., 5., 5., 1.])
+
+    Call the solver
+
+    >>> sol = sqp(objective, x0, constraints)
+    >>> x = sol['x']
+    >>> fval = sol['fval']
+    >>> exitflag = sol['exitflag']
+    >>> nfunevals = sol['nfevals']
+    >>> lagrange_mult = sol['lambda']
+    >>> iterations = sol['iterations']
+
+    The values are:
+
+    - x = [1. 4.74299964 3.82114998 1.37940829]
+    - fval = 17.014017289178593
+    - exitflag = 2
+    - nfunevals = 7
+    - lagrange_mult['eq'] = [-0.16146857]
+    - lagrange_mult['ineq'] = [-0.55229366]
+    - lagrange_mult['lb'] = [-1.08787123e+00 -3.40273704e-12 -8.67542702e-12 -5.52639122e-12]
+    - lagrange_mult['ub'] = [-3.46930334e-12 -6.12161682e-10 -8.34873225e-12 -3.39974223e-12]
+    - iterations = 5
+
+
+    ** Three equality constraints, no inequalities and no bounds problem **
 
     Define the objective function as:
 
@@ -238,15 +308,24 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
 
     Call the solver
 
-    >>> x, fval, exitflag, nfunevals, lagrange_mult, iterations = sqp(objective, x0, constraints)
+    >>> sol = sqp(objective, x0, constraints)
+    >>> x = sol['x']
+    >>> fval = sol['fval']
+    >>> exitflag = sol['exitflag']
+    >>> nfunevals = sol['nfevals']
+    >>> lagrange_mult = sol['lambda']
+    >>> iterations = sol['iterations']
 
     The values are:
 
-    - x = [-1.71714352  1.59570964  1.82724584 -0.76364308 -0.76364308]
-    - fval = 0.05394985
+    - x = [-1.71714355  1.59570967  1.82724579 -0.76364308 -0.76364308]
+    - fval = 0.05394984777028391
     - exitflag = 2
     - nfunevals = 9
-    - lagrange_mult['eq'] = [-0.04016275 0.03795778 -0.00522259]
+    - lagrange_mult['eq'] = [-0.04016274  0.03795777 -0.00522264]
+    - lagrange_mult['ineq'] = []
+    - lagrange_mult['lb'] = []
+    - lagrange_mult['ub'] = []
     - iterations = 7
 
 
@@ -274,7 +353,7 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
     # check constraints
     __constraint_function_check(confun, x0)
 
-    lbgrad = np.eye(x0.size)
+    lbgrad = - np.eye(x0.size)
     ubgrad = - lbgrad
 
     lbidx = lb != - np.inf
@@ -335,11 +414,11 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
         # Solve the QP subproblem to compute the search direction p
         lambda_old = lambdav.copy()  # Store old multipliers
 
-        p, qpfval, qpexflag, lambdadict = __qp_solve(B, c, -C, ci, -F, ce, x0=x, solver=qpsolver)
+        p, qpfval, qpexflag, lambdadict = __qp_solve(B, c, C, -ci, F, -ce, x0=x, solver=qpsolver)
 
         if qpexflag == 1:
-            lambdav[:nr_f] = lambdadict['eq']
-            lambdav[nr_f:] = lambdadict['ineq']
+            lambdav[:nr_f] = -lambdadict['eq']
+            lambdav[nr_f:] = -lambdadict['ineq']
         else:
             lambdav = lambda_old.copy()
 
@@ -425,5 +504,12 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
 
     nevals = globalls['nevals']
 
-    return {'x': x, 'fval': obj, 'exitflag': exitflag, 'lambda': lambdav, 'iterations': iteration}
+    n_c_eq = ce.size
+    n_bnds = 0 if np.all(lb == -np.inf) and np.all(ub == np.inf) else lb.size
+    n_c_iq = ci.size - 2 * n_bnds
+    lmbda_dict = {'eq': lambdav[:n_c_eq],
+                  'ineq': lambdav[n_c_eq:(n_c_eq + n_c_iq)],
+                  'lb': lambdav[(n_c_eq + n_c_iq):(n_c_eq + n_c_iq + n_bnds)],
+                  'ub': lambdav[(n_c_eq + n_c_iq + n_bnds):(n_c_eq + n_c_iq + 2*n_bnds)]}
+    return {'x': x, 'fval': obj, 'exitflag': exitflag, 'lambda': lmbda_dict, 'iterations': iteration, 'nfevals': nevals}
     # end sqp
