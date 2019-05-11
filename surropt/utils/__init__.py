@@ -69,15 +69,6 @@ def distribute_data(doe_data: np.ndarray, options: dict):
                     type_idx[i] = 2
                     has_type_2 = True
 
-            if has_type_2:
-                # duplicate the indexes positions
-                type2_con_index = np.nonzero(type_idx == 2)[0]
-                type_idx = np.insert(type_idx, type2_con_index, type_idx[type2_con_index])  # update of positions
-                con_data = np.insert(con_data, type2_con_index, con_data[:, type2_con_index], axis=1)
-
-                con_data[:, type2_con_index] = con_lb[type2_con_index] - con_data[:, type2_con_index]
-                con_data[:, type2_con_index + 1] = con_data[:, type2_con_index + 1] - con_ub[type2_con_index]
-
             if has_type_0:
                 type0_con_index = np.nonzero(type_idx == 0)[0]
                 con_data[:, type0_con_index] = con_data[:, type0_con_index] - con_ub[type0_con_index]
@@ -85,6 +76,15 @@ def distribute_data(doe_data: np.ndarray, options: dict):
             if has_type_1:
                 type1_con_index = np.nonzero(type_idx == 1)[0]
                 con_data[:, type1_con_index] = con_lb[type1_con_index] - con_data[:, type1_con_index]
+
+            if has_type_2:
+                # duplicate the indexes positions
+                type2_con_index = np.nonzero(type_idx == 2)[0]
+                lb_data = con_lb[type2_con_index] - con_data[:, type2_con_index]
+                ub_data = con_data[:, type2_con_index] - con_ub[type2_con_index]
+
+                con_data[:, type2_con_index] = lb_data
+                con_data = np.insert(con_data, type2_con_index + 1, ub_data, axis=1)
 
     inp_data = doe_data[:, inp_idx]
     obj_data = doe_data[:, obj_idx]
