@@ -164,3 +164,24 @@ def build_surrogate(input_data: np.ndarray, obs_data: np.ndarray, options: dict,
             perf.append(perfPH)
 
     return krmodel, perf
+
+
+def sample_model(x, fun_handle: callable, options: dict, args=()):
+    # sample the model
+    sample = fun_handle(x, *args)
+
+    if not all(k in sample for k in ['solution', 'status']):
+        raise KeyError("Solution dictionary returned from the sample function must have the keys 'solution' and "
+                       "'status'")
+
+    # distribute data for surrogate
+    x_samp, fobs_sampled, gobs_sampled = distribute_data(sample['solution'], options)
+    x_samp = x_samp.flatten()
+    fobs_sampled = fobs_sampled.item()
+    gobs_sampled = gobs_sampled.flatten()
+
+    # penalize the objective function if the sample has not converged
+    penalty_factor = options['penalty_factor']
+    fobs_sampled = fobs_sampled if sample['status'] else fobs_sampled + penalty_factor
+
+    return x_samp, fobs_sampled, gobs_sampled

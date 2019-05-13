@@ -43,28 +43,28 @@ def objective_prediction(x, surrmodel):
     x : ndarray
         Input variable vector.
     surrmodel : dict
-        pydace surrogate model.
+        pydace surrogate model of objective function.
 
     Returns
     -------
     f : float
         Objective function evaluation for given `x`.
     g : ndarray
-        Gradient column vector evaluation for given `x`.
+        Gradient column vector evaluation for given `x` (as 1D array).
     """
     f, g, *_ = predictor(x, surrmodel, compute_jacobian='yes')
 
-    return f, g.reshape(-1, 1)
+    return f, g.flatten()
 
 
-def constraint_prediction(x, surrmodel):
+def constraint_prediction(x, surrmodel: list):
     """Constraint function for optimization. Only accepts pydace surrogate models.
     Parameters
     ----------
     x : ndarray
         Input variable vector.
     surrmodel : list
-        pydace surrogate model.
+        pydace surrogate model of constraints.
 
     Returns
     -------

@@ -1,11 +1,11 @@
 import numpy as np
 import scipy.spatial as spatial
 
-from surropt.utils import distribute_data, build_surrogate
+from surropt.utils import distribute_data, build_surrogate, sample_model
 from surropt.optimizers import optimize_nlp
 
 
-def caballero(doe_initial: np.ndarray, options: dict):
+def caballero(doe_initial: np.ndarray, sample_function: callable, options: dict, sample_function_args=()):
     # status table:
     # 0 - converged successfully
     # 1 - maximum number of function evaluations achieved and a feasible point was found
@@ -15,15 +15,28 @@ def caballero(doe_initial: np.ndarray, options: dict):
     else:
         nlp_solver = options['nlp_solver']
 
+    if 'penalty_factor' not in options:
+        raise KeyError("Penalty factor for non-convergence not defined in options dictionary")
+
     if 'tol1' not in options:
-        raise KeyError("First contraction tolerance specification not found in options dictionary.")
+        raise KeyError("Refinement tolerance specification not found in options dictionary.")
     else:
         tol1 = options['tol1']
 
     if 'tol2' not in options:
-        raise KeyError("Second contraction tolerance specification not found in options dictionary.")
+        raise KeyError("Stopping tolerance specification not found in options dictionary.")
     else:
         tol2 = options['tol2']
+
+    if 'first_contract' not in options:
+        raise KeyError("First contraction factor specification not found in options dictionary.")
+    else:
+        first_contract_factor = options['first_contract']
+
+    if 'second_contract' not in options:
+        raise KeyError("Second contraction factor specification not found in options dictionary.")
+    else:
+        second_contract_factor = options['second_contract']
 
     if 'con_tol' not in options:
         raise KeyError("Constraint tolerance specification not found in options dictionary.")
@@ -92,7 +105,11 @@ def caballero(doe_initial: np.ndarray, options: dict):
 
         if not xjk.reshape(-1).tolist() in x_samp.tolist():  # if the last solution found is not repeated
             # sample the point
-            raise NotImplementedError("Sampling not implemented")
+            x_sampled, fobs_sampled, gobs_sampled = sample_model(xjk, sample_function, options,
+                                                                 args=sample_function_args)
+            x_samp = np.append(x_samp, x_sampled[np.newaxis, :], axis=0)
+            fobs = np.append(fobs, np.array([[fobs_sampled]]), axis=0)
+            gobs = np.append(gobs, gobs_sampled[np.newaxis, :], axis=0)
 
         fun_evals += 1
 
@@ -103,15 +120,17 @@ def caballero(doe_initial: np.ndarray, options: dict):
         else:  # do not update kriging parameters, just insert points
             opt_hyper = np.zeros((xjk.size, 1 + len(con_model)))
             opt_hyper[:, 0] = obj_model['theta'].flatten()
-            for i in range(1, len(con_model)):
-                opt_hyper[:, i] = con_model[i]['theta'].flatten()
+            for i in range(len(con_model)):
+                opt_hyper[:, i + 1] = con_model[i]['theta'].flatten()
 
-            # FIXME: (05/05/2019) not debugged. Check opt_hyper and models returned from build_surrogate
-            surr_models, _ = build_surrogate(x_samp, np.hstack((fobs, gobs)), options, opt_hyper=opt_hyper)
+            surr_models, _ = build_surrogate(x_samp, np.hstack((fobs, gobs)), options, opt_hyper=opt_hyper.tolist())
             obj_model = surr_models[0]
             con_model = surr_models[1:]
 
         # Starting from xjk solve the NLP to get xj1k
+        if fun_evals == 11:
+            a = 0
+
         xj1k, fj1k, exitflag = optimize_nlp(obj_model, con_model, xjk, lbopt, ubopt, solver=None)
 
         if np.linalg.norm(xjk - xj1k) / np.linalg.norm(dlb - dub) >= tol1:
