@@ -5,6 +5,7 @@ from cvxopt.solvers import options
 
 options['show_progress'] = False  # disable cvxopt output
 options['abstol'] = 1e-8
+options['feastol'] = 1e-8
 
 
 # Linesearch auxiliary routine
@@ -332,6 +333,7 @@ def __qp_solve(H, f, A=None, b=None, Aeq=None, beq=None, x0=None, solver=None):
         inequality lagrange multipliers respectively.
 
     """
+    # FIXME: (13/05/2019) CVXOPT behaving weirdly when using in caballero's algorithm, domain error. Changing to quadprog
     if solver == "cvxopt" or solver is None:  # CVXOPT
         H = matrix(H)
         f = matrix(f.reshape(-1).astype(np.double))

@@ -413,14 +413,16 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
 
         # Solve the QP subproblem to compute the search direction p
         lambda_old = lambdav.copy()  # Store old multipliers
+        pold = p.copy() if iteration != 0 else np.array([[]])
 
-        p, qpfval, qpexflag, lambdadict = __qp_solve(B, c, C, -ci, F, -ce, x0=x, solver=qpsolver)
+        p, qpfval, qpexflag, lambdadict = __qp_solve(B, c, C, -ci, F, -ce, x0=np.array([]), solver=qpsolver)
 
         if qpexflag == 1:
-            lambdav[:nr_f] = -lambdadict['eq']
+            lambdav[:nr_f] = lambdadict['eq']
             lambdav[nr_f:] = -lambdadict['ineq']
         else:
             lambdav = lambda_old.copy()
+            p = pold.copy()
 
         # Perform linesearch
         x_new, alpha, obj_new, c_new, globalls = __linesearch(x, p, objfun, confun, lambdav, obj, c, globalls)
