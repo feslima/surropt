@@ -3,6 +3,7 @@ from cvxopt.solvers import qp as cvxqp
 from cvxopt.solvers import options
 from quadprog import solve_qp
 import numpy as np
+import scipy as sp
 import scipy.io as sio
 from tests_ import OPTIMIZERS_PATH
 
@@ -76,16 +77,104 @@ def quadp_args(x):
 
 
 # print all tests of p and lambda(ineq) of results obtained from sqp against quadprog
-print("iter\t-p\t\tlambda")
+print("iter\tp\t\tlambda")
 for dic in dstruct:
     H = dic['B'].astype(np.float64)
     f, A, b, Aeq, beq = quadp_args(dic['x'])
 
     print(f"{dic['iter']}:\t\t" +
-          str(np.allclose(solve_qp(H, f, C=np.vstack((Aeq, A)).T, b=np.concatenate((beq, b)), meq=beq.size)[0],
-                          -dic['p'], atol=1e-7)
+          str(np.allclose(solve_qp(H, -f, C=-np.vstack((Aeq, A)).T, b=np.concatenate((beq, b)), meq=beq.size)[0],
+                          dic['p'], atol=1e-7)
               ) + "\t" +
           str(np.allclose(solve_qp(H, f, C=np.vstack((Aeq, A)).T, b=np.concatenate((beq, b)), meq=beq.size)[4][1:],
                           dic['lmbd'][1:], atol=1e-7)
               )
           )
+
+
+# -------------------------------- octave example -------------------------------------
+def phi(x):
+    obj = np.exp(np.prod(x)) - 0.5 * (x[0] ** 3 + x[1] ** 3 + 1) ** 2
+
+    gradobj = np.zeros((5,))
+    gradobj[0] = (np.prod(x[1:]) * np.exp(np.prod(x)) - (3 * x[0] ** 2) * (x[0] ** 3 + x[1] ** 3 + 1))
+    gradobj[1] = np.prod(x[np.arange(len(x)) != 1]) * np.exp(np.prod(x)) - (3 * x[1] ** 2) * (x[0] ** 3 + x[1] ** 3 + 1)
+    gradobj[2] = np.prod(x[np.arange(len(x)) != 2]) * np.exp(np.prod(x))
+    gradobj[3] = np.prod(x[np.arange(len(x)) != 3]) * np.exp(np.prod(x))
+    gradobj[4] = np.prod(x[np.arange(len(x)) != 4]) * np.exp(np.prod(x))
+
+    return obj, gradobj
+
+
+def g(x):
+    r = np.array([
+        [np.sum(x ** 2) - 10],
+        [x[1] * x[2] - 5 * x[3] * x[4]],
+        [x[0] ** 3 + x[1] ** 3 + 1]
+    ])
+
+    rgrad = np.zeros((3, 5))
+    rgrad[0, 0] = 2 * x[0]
+    rgrad[0, 1] = 2 * x[1]
+    rgrad[0, 2] = 2 * x[2]
+    rgrad[0, 3] = 2 * x[3]
+    rgrad[0, 4] = 2 * x[4]
+
+    rgrad[1, 0] = 0
+    rgrad[1, 1] = x[2]
+    rgrad[1, 2] = x[1]
+    rgrad[1, 3] = -5 * x[4]
+    rgrad[1, 4] = -5 * x[3]
+
+    rgrad[2, 0] = 3 * x[0] ** 2
+    rgrad[2, 1] = 3 * x[1] ** 2
+    rgrad[2, 2] = 0
+    rgrad[2, 3] = 0
+    rgrad[2, 4] = 0
+
+    return np.array([[]]), r, np.array([[]]), rgrad
+
+
+x0 = np.array([-1.8, 1.7, 1.9, -0.8, -0.8])
+
+ci, ce, C, F = g(x0)
+_, c = phi(x0)
+
+sol1 = solve_qp(np.eye(5), -c.flatten(), C=-F.T, b=ce.flatten(), meq=ce.size)
+
+# test to obtain equality constraints lagrange multipliers
+Gxc = np.eye(5) @ sol1[0] + c.flatten()
+AT = -F.T
+sp.linalg.lstsq(AT, Gxc)
+
+
+# -------------------------------------- rosenbrock single equality --------------------------------------
+def rosen_obj(x):
+    obj = 100 * (x[1] - x[0] ** 2) ** 2 + (1 - x[0]) ** 2
+
+    obj_grad = np.zeros((2,))
+    obj_grad[0] = -400 * (x[1] - x[0] ** 2) * x[0] - 2 * (1 - x[0])
+    obj_grad[1] = 200 * (x[1] - x[0] ** 2)
+
+    return obj, obj_grad
+
+
+def rosen_con_ineq(x):
+    ineq = x[0] + 2*x[1] - 1
+    eq = np.array([[]])
+
+    ineq_grad = np.zeros((1, 2))
+    ineq_grad[0, 0] = 1
+    ineq_grad[0, 1] = 2
+
+    eq_grad = np.array([[]])
+
+    return ineq, eq, ineq_grad, eq_grad
+
+
+x0 = np.array([-1., 2])
+
+ci, ce, C, F = rosen_con_ineq(x0)
+_, c = rosen_obj(x0)
+
+sol2 = solve_qp(np.eye(2), -c.flatten(), C=-C.T, b=ci.flatten(), meq=ce.size)

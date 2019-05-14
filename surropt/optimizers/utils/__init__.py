@@ -2,6 +2,9 @@ import numpy as np
 from cvxopt import matrix
 from cvxopt.solvers import qp as cvxqp
 from cvxopt.solvers import options
+from quadprog import solve_qp
+
+from surropt.utils.matrixdivide import mldivide
 
 options['show_progress'] = False  # disable cvxopt output
 options['abstol'] = 1e-8
@@ -143,7 +146,7 @@ def __set_options_structure(options, x0):
         tolstep = np.sqrt(np.spacing(1))
         tolopt = np.sqrt(np.spacing(1))
         tolcon = np.sqrt(np.spacing(1))
-        qpsolver = 'cvxopt'
+        qpsolver = 'quadprog'
 
         return maxiter, maxfunevals, tolstep, tolopt, tolcon, qpsolver
 
@@ -204,11 +207,11 @@ def __set_options_structure(options, x0):
         if 'qpsolver' in options:
             if isinstance(options['qpsolver'], str):  # if it is a string, check for valid options
                 qpsolver = options['qpsolver']
-                if qpsolver != 'cvxopt' or qpsolver != 'mosek':
+                if qpsolver != 'cvxopt' or qpsolver != 'quadprog':
                     ValueError("Invalid QP solver option.")
 
         else:
-            qpsolver = 'cvxopt'
+            qpsolver = 'quadprog'
 
         return maxiter, maxfunevals, tolstep, tolopt, tolcon, qpsolver
 
@@ -318,7 +321,7 @@ def __qp_solve(H, f, A=None, b=None, Aeq=None, beq=None, x0=None, solver=None):
     x0 : numpy.array
         One-dimensional array of doubles. Warm-start guess vector.
     solver: string
-        Set to 'mosek' to run MOSEK rather than CVXOPT
+        Set to 'cvxopt' to run CVXOPT rather than quadprog.
 
     Returns
     -------
@@ -334,7 +337,7 @@ def __qp_solve(H, f, A=None, b=None, Aeq=None, beq=None, x0=None, solver=None):
 
     """
     # FIXME: (13/05/2019) CVXOPT behaving weirdly when using in caballero's algorithm, domain error. Changing to quadprog
-    if solver == "cvxopt" or solver is None:  # CVXOPT
+    if solver == "cvxopt":  # CVXOPT
         H = matrix(H)
         f = matrix(f.reshape(-1).astype(np.double))
 
@@ -373,5 +376,37 @@ def __qp_solve(H, f, A=None, b=None, Aeq=None, beq=None, x0=None, solver=None):
             exitflag = 0
 
         lambdav = {'eq': np.array(sol['y']).reshape(-1), 'ineq': np.array(sol['z']).reshape(-1)}
+
+    elif solver == 'quadprog' or solver is None:
+        meq = 0 if beq is None else beq.size
+
+        if meq == 0:  # no equality constraints
+            C_qp = -A.T
+            b_qp = -b.flatten()
+        else:
+            C_qp = -np.vstack((Aeq, A)).T
+            b_qp = -np.concatenate((beq.flatten(), b.flatten()))
+
+        C_qp = None if C_qp.size == 0 else C_qp
+        b_qp = None if b_qp.size == 0 else b_qp
+
+        try:
+            sol = solve_qp(H, -f.flatten(), C=C_qp, b=b_qp, meq=meq)
+        except ValueError:  # QP failed
+            x = x0 if x0 is not None else np.array([])
+            fval = np.array([])
+            exitflag = 0
+            lambdav = {'eq': np.array([]), 'ineq': np.array([])}
+        else:  # QP successful
+            x, fval, _, _, lmbd, _ = sol
+            exitflag = 1
+            x = x.flatten()
+            lmbd = lmbd.flatten()
+            if meq != 0:
+                active_set_idx = np.sort(sol[5] - 1)  # the -1 is to change from fortran index to c index
+                lmbd_active_set = mldivide(C_qp[:, active_set_idx], H @ x + f.flatten())
+            else:
+                lmbd_active_set = np.array([])
+            lambdav = {'eq': lmbd_active_set[:meq], 'ineq': lmbd[meq:]}
 
     return x, fval, exitflag, lambdav

@@ -104,22 +104,23 @@ def rosen_con_ineq(x):
     return ineq, eq, ineq_grad, eq_grad
 
 
+qpsolver = 'quadprog'
 # octave example (no inequalities, 3 equalities and no bounds)
 x0 = np.array([-1.8, 1.7, 1.9, -0.8, -0.8])
-sol = sqp(phi, x0, g)
+sol = sqp(phi, x0, g, options={'qpsolver': qpsolver})
 
 # hs071 test routine (1 equality and 1 inequality and 4 bounds)
 x0 = np.array([1, 5., 5, 1])
 lb = 1. * np.ones((1, x0.size))
 ub = 5. * np.ones((1, x0.size))
 
-sol2 = sqp(hs071obj, x0, hs71con, lb=lb, ub=ub)
+sol2 = sqp(hs071obj, x0, hs71con, lb=lb, ub=ub, options={'qpsolver': qpsolver})
 
 # MATLAB rosenbrock (no constraints and no bounds)
 x0 = np.array([-1., 2])
-sol3 = sqp(rosen_obj, x0, rosen_con)
+sol3 = sqp(rosen_obj, x0, rosen_con, options={'qpsolver': qpsolver})
 
 # MATLAB rosenbrock (1 inequality constraints and no bounds)
 x0 = np.array([-1., 2])
-sol4 = sqp(rosen_obj, x0, rosen_con_ineq)
+sol4 = sqp(rosen_obj, x0, rosen_con_ineq, options={'qpsolver': qpsolver})
 print(sol3)
