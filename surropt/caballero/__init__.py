@@ -91,7 +91,8 @@ def caballero(doe_initial: np.ndarray, sample_function: callable, options: dict,
 
     while True:
         xjk, fjk, exitflag = optimize_nlp(obj_model, con_model, xjk, lbopt, ubopt, solver=nlp_solver)
-
+        if exitflag < 0:
+            print(str(xjk) + "\t\t" + str(j))
         # check for maximum number of function evaluations
         if fun_evals >= max_fun_evals:
             if fobs[np.all(gobs <= con_tol, axis=1), 0].size != 0:
@@ -131,7 +132,7 @@ def caballero(doe_initial: np.ndarray, sample_function: callable, options: dict,
         if fun_evals == 11:
             a = 0
 
-        xj1k, fj1k, exitflag = optimize_nlp(obj_model, con_model, xjk, lbopt, ubopt, solver=None)
+        xj1k, fj1k, exitflag = optimize_nlp(obj_model, con_model, xjk, lbopt, ubopt, solver=nlp_solver)
 
         if np.linalg.norm(xjk - xj1k) / np.linalg.norm(dlb - dub) >= tol1:
             xjk = xj1k
