@@ -1,5 +1,16 @@
-import numpy as np
 import logging
+
+import numpy as np
+
+from surropt.caballero.problem import (
+    CaballeroProblem, constraint_prediction, objective_prediction)
+from surropt.optimizers.utils import (__bnd2cf, __check_vector_input,
+                                      __constraint_function_check,
+                                      __empty_nonlcon, __linesearch,
+                                      __objective_function_check, __qp_solve,
+                                      __set_options_structure)
+from surropt.utils.matrixdivide import mrdivide
+from tests_ import OPTIMIZERS_PATH
 
 try:
     import ipopt
@@ -8,11 +19,6 @@ except ImportError:
 else:
     HAS_IPOPT = True
 
-from surropt.caballero.problem import CaballeroProblem, objective_prediction, constraint_prediction
-from surropt.optimizers.utils import __check_vector_input, __set_options_structure, __empty_nonlcon, __bnd2cf, \
-    __qp_solve, __linesearch, __constraint_function_check, __objective_function_check
-from surropt.utils.matrixdivide import mrdivide
-from tests_ import OPTIMIZERS_PATH
 
 # module variables
 LOG_OFF = False  # flag to turn on loggin of iterations
@@ -27,29 +33,38 @@ logging.basicConfig(filename=OPTIMIZERS_PATH / "sqp_log.log",
 logger = logging.getLogger()
 
 
-def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray, solver=None):
-    """Optimization interface for several NLP solvers (e.g. IpOpt, SQP-active set, etc.).
+def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray,
+                 lb: np.ndarray, ub: np.ndarray, solver=None):
+    """Optimization interface for several NLP solvers (e.g. IpOpt, SQP-active
+    set, etc.).
 
     Parameters
     ----------
     obj_surr : dict
         Surrogate model structure of the objective function.
+
     con_surr : list
         List of surrogate models of the constraints functions.
+
     x0 : ndarray
         Initial estimate.
+
     lb : ndarray
         Lower bound of variables in the NLP problem.
+
     ub : ndarray
         Upper bound of variables in the NLP problem.
+
     solver : str
-        Type of NLP solver to be used. Default is None, which corresponds to SQP active-set solver.
+        Type of NLP solver to be used. Default is None, which corresponds to
+        SQP active-set solver.
 
     Returns
     -------
     out : tuple
-        Tuple of 3 elements containg the optimal solution (first), objective function value at solution (second) and
-        exit flag (third). The exit flag assumes two values: 0 for failure of convergence, 1 for success.
+        Tuple of 3 elements containg the optimal solution (first), objective
+        function value at solution (second) and exit flag (third). The exit 
+        flag assumes two values: 0 for failure of convergence, 1 for success.
     """
 
     if HAS_IPOPT and solver == 'ipopt':
@@ -77,7 +92,8 @@ def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray, lb: np.ndarray,
         if exitflag == 0 or exitflag == 1 or exitflag == 6:
             exitflag = 1  # ipopt succeded
         else:
-            exitflag = 0  # ipopt failed. See IpReturnCodes_inc.h for complete list of flags
+            # ipopt failed. See IpReturnCodes_inc.h for complete list of flags
+            exitflag = 0
 
     elif solver is None or solver == 'sqp':
         sol = sqp(lambda xv: objective_prediction(xv, obj_surr), x0,
@@ -91,9 +107,11 @@ def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray, lb: np.ndarray,
     return x, fval, exitflag
 
 
-def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=None, options: dict = None):
+def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None,
+        ub=None, options: dict = None):
     """
-    This SQP implementation is the one described by [1]_ and implemented in Octave optimization toolbox.
+    This SQP implementation is the one described by [1]_ and implemented in
+    Octave optimization toolbox.
 
     Min         f(x)
     subject to:
@@ -104,27 +122,39 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
     Parameters
     ----------
     objfun : callable
-        Objective function. Its gradient must be evaluated inside this function and returned as 2-D column array.
-        See notes.
+        Objective function. Its gradient must be evaluated inside this function
+        and returned as 2-D column array. See notes.
+
     x0 : numpy.array
-        Initial estimate. For now, this implementation of SQP doesn't handle initial infeasibility. Therefore, `x0` has
-        to be feasible.
+        Initial estimate. For now, this implementation of SQP doesn't handle
+        initial infeasibility. Therefore, `x0` hasto be feasible.
+
     confun : callable
-        Constraints and their Jacobian evaluation, both inequality and equality. See notes.
+        Constraints and their Jacobian evaluation, both inequality and
+        equality. See notes.
+
     lb : {None, numpy.array}
-        Lower bounds. Same number of elements as `x0`. If any of the bounds arguments are set as None (default), it
-        means that all elements of that bound are set as positive(upper bound)/negative(lower bound) infinity 1-D array.
+        Lower bounds. Same number of elements as `x0`. If any of the bounds
+        arguments are set as None (default), it means that all elements of that
+        bound are set as positive(upper bound)/negative(lower bound) infinity
+        1-D array.
+
     ub : {None, numpy.array}
-        Upper bounds. If any of the bounds arguments are set as None (default), it means that all elements of that
-        bound are set as positive(upper bound)/negative(lower bound) infinity 1-D array.
+        Upper bounds. If any of the bounds arguments are set as None (default),
+        it means that all elements of that bound are set as positive(upper
+        bound)/negative(lower bound) infinity 1-D array.
+
     options : dict
         Dictionary containing fields with algorithm options. Valid options are:
+
             - maxiter : maximum number of iterations. Default is 400;
-            - maxfunevals : maximum number of function evaluations. Default is 100 * `x0`.size;
+            - maxfunevals : maximum function evaluations. Default is
+                            100 * `x0`.size;
             - tolopt : Optimality tolerance. Default is 1e-6;
             - tolcon : Constraint tolerance. Default is 1e-6;
             - tolstep : Minimum step size tolerance. Default is 1e-6;
-            - qpsolver: Which library to use the quadratic programming (QP) solver. Default is 'quadprog'.
+            - qpsolver: Which library to use the quadratic programming (QP)
+                        solver. Default is 'quadprog'.
 
     Returns
     -------
@@ -136,53 +166,59 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
             Objective function value at the solution `x`.
         'exitflag' : int
             Convergence flag. Values are:
-            - 1 : First-order optimality measure is less than `options`['tolopt'] and minimum constraint violation was less
+            - 1 : First-order optimality measure is less than
+                 `options`['tolopt'] and minimum constraint violation was less
                   than `options`['tolcon'].
-            - 2 : Step size is less than `options`['tolstep'] and minimum constraint violation was less than
-                  `options`['tolcon'].
+            - 2 : Step size is less than `options`['tolstep'] and minimum
+                  constraint violation was less than `options`['tolcon'].
             - 0 : Maximum number of iterations achieved.
             - -1 : BFGS update failed.
-            - -2 : Step size is less than `options`['tolstep']. However there still is some significant constraint
-                   violation.
+            - -2 : Step size is less than `options`['tolstep']. However there
+                   still is some significant constraint violation.
         'nfevals' : int
             Number of objective function evaluation.
         'lambda' : dict
-            Dictionary containing equality ('eq'), inequality ('ineq') and bounds ('lb', 'ub') Lagrange multipliers at
-            the solution `x`.
+            Dictionary containing equality ('eq'), inequality ('ineq') and
+            bounds ('lb', 'ub') Lagrange multipliers at the solution `x`.
         'iterations' : int
             Number of iterations performed by the algorithm.
 
     Raises
     ------
     ValueError
-        If `x0`,`lb` or `ub` aren't numeric arrays with same number of elements.
+        If `x0`,`lb` or `ub` aren't numeric arrays with same number of elements
         If `lb` is greater `ub` for any element.
-        If an invalid option parameter is set, e.g. typo in name parameter or the parameter doesn't exist.
+        If an invalid option parameter is set, e.g. typo in name parameter or
+        the parameter doesn't exist.
         If the `objfun` or `confun` was set improperly.
 
     Notes
     -----
         ** How to set the `objfun` function **
 
-        The `objfun` object must return a tuple of two elements. The first being the objective function evaluation
-        (float) and the second being a 2-D column array containing the gradient of objective function.
+        The `objfun` object must return a tuple of two elements. The first
+        being the objective function evaluation (float) and the second being a
+        2-D column array containing the gradient of objective function.
 
         ** How to set the `confun` function **
-        The `confun` callable object must return a tuple of four elements. The first two elements are the evaluations
-        of inequality and equality constraints, respectively, returned as 2-D column array. The third and fourth
-        elements of this tuple are the Jacobian evaluation of equality and inequality constraints, respectively.
-        If the problem has only equalities, you must set the first and third elements as 2-D empty array
-        (numpy.array([[]]). If it only has inequalities, set the second and fourth elements as 2-D empty array.
+        The `confun` callable object must return a tuple of four elements. The
+        first two elements are the evaluations of inequality and equality
+        constraints, respectively, returned as 2-D column array. The third and
+        fourth elements of this tuple are the Jacobian evaluation of equality
+        and inequality constraints, respectively. If the problem has only
+        equalities, you must set the first and third elements as 2-D empty
+        array (numpy.array([[]]). If it only has inequalities, set the second
+        and fourth elements as 2-D empty array.
 
 
     References
     ----------
-    .. [1] Nocedal, J. and S. J. Wright. Numerical Optimization, Second Edition. Springer Series in Operations
-           Research, Springer Verlag, 2006.
+    .. [1] Nocedal, J. and S. J. Wright. Numerical Optimization, Second
+        Edition. Springer Series in Operations Research, Springer Verlag, 2006.
 
     Examples
     --------
-    ** Single equality constraint, single inequality constraint and 4 bounds problem **
+    ** Single equality constraint, single inequality constraint and 4 bounds **
 
     Define the objective function as:
 
@@ -337,16 +373,20 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
     # check input vectors x0, lb, ub
     x0, lb, ub = __check_vector_input(x0, lb, ub)
 
-    logger.debug("Initial estimate (x0) - " + np.array2string(x0, precision=4, separator=',', suppress_small=True))
+    logger.debug("Initial estimate (x0) - " +
+                 np.array2string(x0, precision=4, separator=',',
+                                 suppress_small=True))
     logger.debug("Iter #\t|\tx_i\t|\tp_i\t|\tfval")
 
     # check the objective function
     __objective_function_check(objfun, x0)
 
     # check options dictionary
-    maxiter, maxfunevals, tolstep, tolopt, tolcon, qpsolver = __set_options_structure(options, x0)
+    maxiter, maxfunevals, tolstep, tolopt, tolcon, qpsolver = \
+        __set_options_structure(options, x0)
 
-    # check if any confun parameters is coming as None (withtout constraints) and make it a empty handle
+    # check if any confun parameters is coming as None (withtout constraints)
+    # and make it a empty handle
     if confun is None:
         confun = __empty_nonlcon()
 
@@ -362,7 +402,9 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
     ubgrad = ubgrad[ubidx, :]
 
     # Transform bounds into inequality constraints
-    confun = lambda xv, fun=confun: __bnd2cf(xv, lbidx, ubidx, lb, ub, np.vstack((lbgrad, ubgrad)), fun)
+    def confun(xv, fun=confun): return __bnd2cf(xv, lbidx, ubidx, lb, ub,
+                                                np.vstack((lbgrad, ubgrad)),
+                                                fun)
 
     # global structure for parametrization
     globalls = {'nevals': 0}
@@ -414,7 +456,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
         # Solve the QP subproblem to compute the search direction p
         lambda_old = lambdav.copy()  # Store old multipliers
 
-        p, qpfval, qpexflag, lambdadict = __qp_solve(B, c, C, -ci, F, -ce, x0=np.array([]), solver=qpsolver)
+        p, qpfval, qpexflag, lambdadict = __qp_solve(
+            B, c, C, -ci, F, -ce, x0=np.array([]), solver=qpsolver)
 
         if qpexflag == 1:
             lambdav[:nr_f] = -lambdadict['eq']
@@ -424,7 +467,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
             p = x
 
         # Perform linesearch
-        x_new, alpha, obj_new, c_new, globalls = __linesearch(x, p, objfun, confun, lambdav, obj, c, globalls)
+        x_new, alpha, obj_new, c_new, globalls = __linesearch(
+            x, p, objfun, confun, lambdav, obj, c, globalls)
 
         # Re-evaluate objective, constraints and gradients at new x value
         ci_new, ce_new, C_new, F_new = confun(x_new)
@@ -442,14 +486,18 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
         # Check if step size is too small
         if np.linalg.norm(delx) < tolstep * np.linalg.norm(x):
             # Check for minimum constraint violation
-            if np.vstack((ce_new, ci_new)).size == 0 or np.max(np.vstack((ce_new, ci_new))) < tolcon:
-                # the first verification is for cases when there are no constraints, so there is no exception when using
-                # the max
-                exitflag = 2  # Step size is too small and constraint violation
-                # is less than minimum constraint violation
+            if np.vstack((ce_new, ci_new)).size == 0 or \
+                    np.max(np.vstack((ce_new, ci_new))) < tolcon:
+                # the first verification is for cases when there are no
+                # constraints, so there is no exception when using the max
+
+                # Step size is too small and constraint violation is less than
+                # minimum constraint violation
+                exitflag = 2
             else:
-                exitflag = -2  # Step size is too small but there some significante
-                # constraint violation
+                # Step size is too small but there some significant constraint
+                # violation
+                exitflag = -2
 
             break
 
@@ -460,7 +508,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
 
         delxt = delx[:, np.newaxis].conj().T
 
-        d1 = (delxt @ B @ delx).item()  # the item is to guarantee that the result is a scalar
+        # the item is to guarantee that the result is a scalar
+        d1 = (delxt @ B @ delx).item()
 
         t1 = 0.2 * d1
         t2 = delxt @ y
@@ -478,16 +527,18 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
             exitflag = -1  # BFGS Update failed
             break
 
-        # the new axis is to regularize the algebraic vector operations (r and delx are column vectors)
+        # the new axis is to regularize the algebraic vector operations
+        # (r and delx are column vectors)
         B = B - mrdivide(B @ delx[:, np.newaxis] @ delxt @ B, d1) + \
             mrdivide(r[:, np.newaxis] @ r[:, np.newaxis].conj().T, d2)
 
-        logger.debug("{0} |\t{1} |\t{2} |\t{3}".
-                     format(iteration, np.array2string(x.flatten(), precision=4, separator=',', suppress_small=True),
-                            np.array2string(p.flatten(), precision=4, separator=',', suppress_small=True),
-                            obj
-                            )
-                     )
+        str_fmt = "{0} |\t{1} |\t{2} |\t{3}"
+        x_str = np.array2string(x.flatten(), precision=4,
+                                separator=',', suppress_small=True)
+        p_str = np.array2string(p.flatten(), precision=4,
+                                separator=',', suppress_small=True)
+        logger.debug(str_fmt.format(iteration, x_str, p_str, obj))
+
         # Update new values
         x = x_new
         obj = obj_new
@@ -511,6 +562,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
     lmbda_dict = {'eq': lambdav[:n_c_eq],
                   'ineq': lambdav[n_c_eq:(n_c_eq + n_c_iq)],
                   'lb': lambdav[(n_c_eq + n_c_iq):(n_c_eq + n_c_iq + n_bnds)],
-                  'ub': lambdav[(n_c_eq + n_c_iq + n_bnds):(n_c_eq + n_c_iq + 2*n_bnds)]}
-    return {'x': x, 'fval': obj, 'exitflag': exitflag, 'lambda': lmbda_dict, 'iterations': iteration, 'nfevals': nevals}
+                  'ub': lambdav[(n_c_eq + n_c_iq + n_bnds): (n_c_eq + n_c_iq + 2 * n_bnds)]}
+
+    return {'x': x, 'fval': obj, 'exitflag': exitflag, 'lambda': lmbda_dict,
+            'iterations': iteration, 'nfevals': nevals}
     # end sqp
