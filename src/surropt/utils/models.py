@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.optimize import root
 
-from ..core import _is_numeric_array_like
+from ..core.utils import _is_numeric_array_like
 
 
 def evaporator(f1: float, f3: float, p100: float, f200: float,
