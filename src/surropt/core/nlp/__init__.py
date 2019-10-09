@@ -45,6 +45,7 @@ def optimize_nlp(procedure: InfillProcedure, nlp_options: NLPOptions,
         # send data to server and return the nlp solution
         response = requests.post(url=nlp_options.server_url + '/opt', json=dic)
         sol = response.json()
+        sol['x'] = np.array(sol['x'])  # converting from list to np.array
 
     else:
         raise NotImplementedError("NLP solver not implemented.")

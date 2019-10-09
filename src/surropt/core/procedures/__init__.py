@@ -5,6 +5,7 @@ import numpy as np
 
 from ..utils import _is_numeric_array_like
 from ..options import ProcedureOptions
+from ..options.nlp import NLPOptions
 
 
 class InfillProcedure(ABC):
@@ -44,11 +45,7 @@ class InfillProcedure(ABC):
     @f.setter
     def f(self, value):
         if _is_numeric_array_like(value):
-            value = np.asarray(value, dtype=float)
-            # ensure the array is 1D
-            value = value.reshape(-1, 1) if value.ndim != 1 else value
-
-            self._f = np.asarray(value, dtype=float)
+            self._f = np.asarray(value, dtype=float).flatten()
 
         else:
             raise ValueError("'f' has to be a numeric array.")
@@ -72,10 +69,23 @@ class InfillProcedure(ABC):
 
     @options.setter
     def options(self, value: ProcedureOptions):
-        if issubclass(value, ProcedureOptions):
+        if isinstance(value, ProcedureOptions):
             self._options = value
         else:
             raise ValueError("'options' has to be a valid options structure.")
+
+    @property
+    def nlp_options(self):
+        """Non-Linear Programming solver options."""
+        return self._nlp_options
+
+    @nlp_options.setter
+    def nlp_options(self, value: NLPOptions):
+        if isinstance(value, NLPOptions):
+            self._nlp_options = value
+        else:
+            raise ValueError("'nlp_options' has to be a valid NLP options "
+                             "structure.")
 
     @property
     def lb(self):
@@ -85,11 +95,7 @@ class InfillProcedure(ABC):
     @lb.setter
     def lb(self, value):
         if _is_numeric_array_like(value):
-            value = np.asarray(value, dtype=float)
-            # ensure the array is 1D
-            value = value.reshape(-1, 1) if value.ndim != 1 else value
-
-            self._lb = np.asarray(value, dtype=float)
+            self._lb = np.asarray(value, dtype=float).flatten()
 
         else:
             raise ValueError("'lb' has to be a numeric array.")
@@ -102,11 +108,7 @@ class InfillProcedure(ABC):
     @ub.setter
     def ub(self, value):
         if _is_numeric_array_like(value):
-            value = np.asarray(value, dtype=float)
-            # ensure the array is 1D
-            value = value.reshape(-1, 1) if value.ndim != 1 else value
-
-            self._ub = np.asarray(value, dtype=float)
+            self._ub = np.asarray(value, dtype=float).flatten()
 
         else:
             raise ValueError("'ub' has to be a numeric array.")
@@ -114,7 +116,7 @@ class InfillProcedure(ABC):
     # -------------------------------------------------------------------------
     def __init__(self, x: np.ndarray, g: np.ndarray, f: np.ndarray,
                  model_function, lb: np.ndarray, ub: np.ndarray,
-                 options: ProcedureOptions):
+                 options: ProcedureOptions, nlp_options: NLPOptions):
         super().__init__()
 
         self.x = x
@@ -124,6 +126,7 @@ class InfillProcedure(ABC):
         self.lb = lb
         self.ub = ub
         self.options = options
+        self.nlp_options = nlp_options
 
     @abstractmethod
     def check_setup(self):
@@ -152,6 +155,9 @@ class InfillProcedure(ABC):
         if d_x != d_lb or d_x != d_ub:
             raise ValueError("The number of input dimensions ('x') has to be "
                              "the same as 'lb' and 'ub'.")
+
+        if np.any(self.lb >= self.ub):
+            raise ValueError("'lb' elements must be greater than 'ub'.")
 
         # options checkup
         self.options.check_options_setup()
