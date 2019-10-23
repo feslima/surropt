@@ -25,6 +25,11 @@ class InfillProcedure(ABC):
             raise ValueError("'x' has to be a numeric array.")
 
     @property
+    def m(self) -> int:
+        """Number of initial samples. (READONLY)"""
+        return self._m
+
+    @property
     def g(self) -> np.ndarray:
         """Observed constraint data."""
         return self._g
@@ -145,6 +150,9 @@ class InfillProcedure(ABC):
         if n_x != n_g or n_x != n_f:
             raise ValueError("'x', 'g' and 'f' must have the same number of "
                              "rows.")
+
+        # if input dimensions are ok, store the number of initial points
+        self._m = n_x
 
         d_lb = self.lb.size
         d_ub = self.ub.size
