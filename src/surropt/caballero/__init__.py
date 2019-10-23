@@ -41,23 +41,28 @@ class Caballero(InfillProcedure):
         super().check_setup()
 
         # search for feasible points in the initial sampling
-        self.search_best_feasible_index()
+        best_feas_idx = self.search_best_feasible_index(g=self.g, f=self.f)
 
-    def search_best_feasible_index(self):
-        # get feasible points indexes
-        feas_idx = np.nonzero(np.all(self.g <= self.options.feasible_tol,
+        if best_feas_idx is None:
+            raise IndexError("No initial feasible point found. You need at "
+                             "least one feasible case in the sample.")
+        else:
+            self.best_feas_idx = best_feas_idx
+
+    def search_best_feasible_index(self, g: np.ndarray, f: np.ndarray) -> int:
+        # get feasible points indexes for a given set of samples
+        feas_idx = np.nonzero(np.all(g <= self.options.feasible_tol,
                                      axis=1))[0]
 
         if feas_idx.size == 0:
-            # no feasible point found, throw exception
-            raise IndexError("No feasible point found. You need at least one "
-                             "feasible case in the sample.")
+            # no feasible point found, return None
+            return None
         else:
             # get feasible objective function values
-            feas_obj = self.f[feas_idx]
+            feas_obj = f[feas_idx]
 
             # get best feasible index
-            self.best_feas_idx = feas_idx[np.argmin(feas_obj)].item()
+            return feas_idx[np.argmin(feas_obj)].item()
 
     def build_surrogate(self, optimize=False) -> None:
         """Builds the objective and constraints surrogates based on whether or
@@ -140,12 +145,12 @@ class Caballero(InfillProcedure):
                 print(Fore.RED + np.array2string(xjk, precision=4,
                                                  separator='\t', sign=' '))
             else:
-                print(Fore.RED + np.array2string(xjk, precision=4,
-                                                 separator='\t', sign=' '))
+                print(Fore.RESET + np.array2string(xjk, precision=4,
+                                                   separator='\t', sign=' '))
 
             fun_evals += 1
 
-            if fun_evals >= 4:
+            if fun_evals >= self.options.max_fun_evals:
                 break
 
         deinit()
