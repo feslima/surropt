@@ -8,8 +8,9 @@ from ..options.nlp import DockerNLPOptions, NLPOptions
 from ..procedures import InfillProcedure
 
 
-def optimize_nlp(procedure: InfillProcedure, nlp_options: NLPOptions,
-                 x0: list, lb: list, ub: list):
+def optimize_nlp(procedure: InfillProcedure, x: np.ndarray, g: np.ndarray,
+                 f: np.ndarray, nlp_options: NLPOptions, x0: list, lb: list,
+                 ub: list):
     if not isinstance(procedure, InfillProcedure):
         raise ValueError("'procedure' has to be a valid Infill procedure "
                          "object.")
@@ -26,12 +27,12 @@ def optimize_nlp(procedure: InfillProcedure, nlp_options: NLPOptions,
                      for model in procedure.surr_con]
 
         # process data to be sent
-        surr_data = {'input_design': procedure.x.tolist(),
+        surr_data = {'input_design': x.tolist(),
                      'fobj_data': {
-            'fobj_obs': procedure.f.tolist(),
+            'fobj_obs': f.tolist(),
             'fobj_theta': procedure.surr_obj.theta.flatten().tolist()},
             'const_data': {
-            'const_obs': procedure.g.tolist(),
+            'const_obs': g.tolist(),
             'const_theta': con_theta},
             'regmodel': procedure.regression,
             'corrmodel': 'corrgauss'

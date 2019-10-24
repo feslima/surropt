@@ -28,7 +28,8 @@ def main():
     f = mat_contents[:, 19]
 
     # sampling function
-    model_function = evaporator
+    def model_function(x):
+        return evaporator(f1=x[0], f3=x[1], p100=x[2], f200=x[3])
 
     # bounds
     lb = [8.5, 0, 102, 0]
