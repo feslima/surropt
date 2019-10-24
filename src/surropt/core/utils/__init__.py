@@ -17,3 +17,40 @@ def _is_numeric_array_like(value):
         finally:
             # conversion successful
             return True
+
+
+def is_row_member(a: np.ndarray, b: np.ndarray):
+    """If `a` is a 1D array, checks if `a` is a row of `b`. Otherwise, checks
+    if each row of `a` is row of b (the result is a 1D bool array).
+
+    Parameters
+    ----------
+    a : np.ndarray
+        1D or 2D array to be checked. If 1D, treats `a` as single row.
+    b : np.ndarray
+        2D array where `a` is checked against.
+
+    Returns
+    -------
+    out : bool or 1D bool array
+        If `a` is 1D, the result is a single boolean value, else a 1D bool
+        array where each element corresponds to a row of `a`.
+    """
+    if b.ndim != 2:
+        raise ValueError("b has to be a 2D array.")
+
+    if a.ndim == 1:
+        # a is a 1D array, treat the entire array as row
+        return (a == b).all(axis=1).any()
+    elif a.ndim == 2:
+        # a is a 2D array, return a bool 1D array
+        a_rows, _ = a.shape
+        result = np.full((a_rows,), False, dtype=bool)
+
+        for row in range(a_rows):
+            result[row] = is_row_member(a[row], b)
+
+        return result
+
+    else:
+        raise ValueError("Row check valid only for 1D or 2D arrays.")

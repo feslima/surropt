@@ -1,13 +1,15 @@
+import warnings
 from copy import deepcopy
-from colorama import Fore, Style, init, deinit
 
 import numpy as np
+from colorama import Fore, Style, deinit, init
 from pydace import Dace
 
-from ..core.procedures import InfillProcedure
-from .problem import CaballeroOptions
-from ..core.options.nlp import NLPOptions, DockerNLPOptions
 from ..core.nlp import optimize_nlp
+from ..core.options.nlp import DockerNLPOptions, NLPOptions
+from ..core.procedures import InfillProcedure
+from ..core.utils import is_row_member
+from .problem import CaballeroOptions
 
 
 class Caballero(InfillProcedure):
@@ -132,6 +134,11 @@ class Caballero(InfillProcedure):
         # initial NLP solver estimate
         x0 = self.x[self.best_feas_idx, :].flatten()
 
+        # create internal variables of caballero
+        self._xlhs = deepcopy(self.x)
+        self._gobs = deepcopy(self.g)
+        self._fobs = deepcopy(self.f)
+
         # colored font print
         init()
 
@@ -151,6 +158,24 @@ class Caballero(InfillProcedure):
             fun_evals += 1
 
             if fun_evals >= self.options.max_fun_evals:
+                warnings.warn("Maximum number of function evaluations "
+                              "achieved!")
+
+                # search feasible indexes
+                feas_idx = self.search_best_feasible_index(self._gobs,
+                                                           self._fobs)
+                if feas_idx is not None:
+                    report_str = self.get_results_report(index=feas_idx,
+                                                         r=0.005, x=self._xlhs,
+                                                         f=self._fobs,
+                                                         fun_evals=fun_evals)
+                    print(report_str)
                 break
+
+            if not is_row_member(xjk, self._xlhs):
+                raise NotImplementedError("Model sampling function not "
+                                          "implemented!")
+            else:
+                raise NotImplementedError("Trigger refinement phase!")
 
         deinit()

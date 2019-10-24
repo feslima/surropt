@@ -4,6 +4,7 @@ from scipy.io import loadmat
 from surropt.utils.models import evaporator
 from surropt.caballero import Caballero
 from tests_ import RESOURCES_PATH
+from surropt.core.options.nlp import DockerNLPOptions
 
 
 def main():
@@ -33,8 +34,13 @@ def main():
     lb = [8.5, 0, 102, 0]
     ub = [20., 100., 400., 400.]
 
+    # nlp server options
+    nlp_opts = DockerNLPOptions(name='wsl-server',
+                                server_url='http://localhost:5000')
+
     caballero_obj = Caballero(x=x, g=g, f=f, model_function=model_function,
-                              lb=lb, ub=ub, regression='poly1')
+                              lb=lb, ub=ub, regression='poly1',
+                              nlp_options=nlp_opts)
 
     caballero_obj.optimize()
 
