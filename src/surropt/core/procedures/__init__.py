@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Union
 
 import numpy as np
+from scipy.linalg import norm
+from scipy.spatial import cKDTree
 
-from ..utils import _is_numeric_array_like
 from ..options import ProcedureOptions
 from ..options.nlp import NLPOptions
+from ..utils import _is_numeric_array_like
 
 
 class InfillProcedure(ABC):
@@ -177,3 +179,21 @@ class InfillProcedure(ABC):
         """
 
         self.check_setup()
+
+    def get_results_report(self, index: int, r: float, x: np.ndarray,
+                           f: np.ndarray, fun_evals: int) -> str:
+        # search nearest points within r euclidian distance
+        kdtree = cKDTree(data=x)
+        euc_dom_rng = norm(self.ub - self.ub, ord=2)
+        neigh_idx = kdtree.query_ball_point(x=x[index, :], r=r*euc_dom_rng)
+        results_msg = ("\nBest feasible value found: {0:8.4f} at point\n"
+                       "x = {1}\n"
+                       "{2} points are within {3:.3%} euclidian range of this "
+                       "point based on original domain.\n"
+                       "Number of function evaluations: {4}")
+        return results_msg.format(f[index],
+                                  np.array2string(x[index, :],
+                                                  precision=4, separator='\t',
+                                                  sign=' '),
+                                  len(neigh_idx),
+                                  r, fun_evals)
