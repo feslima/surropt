@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial.distance import pdist
 
 
 def _is_numeric_array_like(value):
@@ -54,3 +55,37 @@ def is_row_member(a: np.ndarray, b: np.ndarray):
 
     else:
         raise ValueError("Row check valid only for 1D or 2D arrays.")
+
+
+def point_domain_distance(p1: np.ndarray, p2: np.ndarray, lb: np.ndarray,
+                          ub: np.ndarray) -> float:
+    """Computes the euclidian distance between two points (`p1`, `p2`) inside a
+    box domain defined by a lower bound (`lb`) and an upper bound (`ub`). The
+    result is the normalized distance between `p1` and `p2` (i.e. the
+    percentage of the domain range which the distance corresponds).
+
+    Parameters
+    ----------
+    p1 : np.ndarray
+        Point 1 (1D array).
+
+    p2 : np.ndarray
+        Point 2 (1D array).
+
+    lb : np.ndarray
+        Domain lower bound (1D array).
+
+    ub : np.ndarray
+        Domain upper bound (2D array).
+
+    Returns
+    -------
+    dist : float
+        Normalized euclidian distance.
+    """
+
+    if p1.ndim != 1 or p2.ndim != 1 or lb.ndim != 1 or ub.ndim != 1:
+        raise ValueError("All input points must be 1D arrays.")
+
+    return (pdist(np.vstack((p1, p2)), metric='euclidean') /
+            pdist(np.vstack((lb, ub)), metric='euclidean')).item()

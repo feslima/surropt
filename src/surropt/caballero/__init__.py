@@ -9,7 +9,7 @@ from scipy.linalg import norm
 from ..core.nlp import optimize_nlp
 from ..core.options.nlp import DockerNLPOptions, NLPOptions
 from ..core.procedures import InfillProcedure
-from ..core.utils import is_row_member
+from ..core.utils import is_row_member, point_domain_distance
 from .problem import CaballeroOptions
 
 
@@ -65,6 +65,7 @@ class Caballero(InfillProcedure):
             feas_obj = f[feas_idx]
 
             # get best feasible index
+            # the np.argmin already handles multiple minima as first ocurrence
             return feas_idx[np.argmin(feas_obj)].item()
 
     def build_surrogate(self, optimize=False, x=None, f=None, g=None) -> None:
@@ -140,11 +141,11 @@ class Caballero(InfillProcedure):
         super().optimize()
 
         # initialize counter and domains
-        k, j = 1, 1
+        self.k, self.j = 1, 1
         lb, ub = self.lb, self.ub
         lbopt, hlb, dlb = deepcopy(lb), deepcopy(lb), deepcopy(lb)
         ubopt, hub, dub = deepcopy(ub), deepcopy(ub), deepcopy(ub)
-        fun_evals, move_num, contract_num = 0, 0, 0
+        fun_evals, self.move_num, self.contract_num = 0, 0, 0
 
         # initial NLP solver estimate
         x0 = self.x[self.best_feas_idx, :].flatten()
@@ -153,6 +154,11 @@ class Caballero(InfillProcedure):
         self._xlhs = deepcopy(self.x)
         self._gobs = deepcopy(self.g)
         self._fobs = deepcopy(self.f)
+
+        # initialize xstar, gstar and fstar
+        self._xstar = x0.reshape(1, -1)
+        self._gstar = self._gobs[self.best_feas_idx, :].reshape(1, -1)
+        self._fstar = self._fobs[self.best_feas_idx].flatten()
 
         # colored font print
         init()
@@ -197,6 +203,7 @@ class Caballero(InfillProcedure):
                 fun_evals += 1
 
             else:
+                # couldn't improve from last iteration
                 raise NotImplementedError("Trigger refinement phase!")
 
             # wheter or not to update kriging parameters after refinement phase
@@ -212,13 +219,14 @@ class Caballero(InfillProcedure):
                                ub=ubopt.tolist())
             xj1k, fj1k, exitflag = sol['x'], sol['fval'], sol['exitflag']
 
-            if norm(xjk - xj1k, ord=2) / norm(lb - ub, ord=2) >= \
+            if point_domain_distance(xjk, xj1k, lb, ub) >= \
                     self.options.ref_tol:
                 # there was improvement, keep going
                 xjk = xj1k
-                j += 1
+                self.j += 1
 
             else:
+                self.refine()
                 raise NotImplementedError("Refinement phase not implemented!")
 
         deinit()
@@ -231,3 +239,39 @@ class Caballero(InfillProcedure):
         # TODO: implement other parameters capture in 'extras' key
         # TODO: output data sanitation (g, f, and extras)
         return {'g': g, 'f': f}
+
+    def refine(self):
+        # find best value inserted
+        x_ins = self._xlhs[self.m:, :]
+        g_ins = self._gobs[self.m:, :]
+        f_ins = self._fobs[self.m:]
+
+        best_idx = self.search_best_feasible_index(g_ins, f_ins)
+
+        if best_idx is not None:
+            self._xstar = np.vstack((self._xstar, x_ins[best_idx, :]))
+            self._gstar = np.vstack((self._gstar, g_ins[best_idx, :]))
+            self._fstar = np.append(self._fstar, f_ins[best_idx])
+
+        else:
+            # no best sampled value found in the inserted points, just insert
+            # the best value in the initial sample (i.e. no improvement).
+            # This block shouldn't be possible. The else is a "just in case".
+            best_init = self.search_best_feasible_index(self.g, self.f)
+
+            self._xstar = np.vstack((self._xstar, self._xlhs[best_init, :]))
+            self._gstar = np.vstack((self._gstar, self._gobs[best_init, :]))
+            self._fstar = np.append(self._fstar, self._fobs[best_init])
+
+        # select the best point to be centered
+        best_star = self.search_best_feasible_index(self._xstar, self._fstar)
+
+        xstark = self._xstar[best_star, :].flatten()
+
+        if self.contract_num == 0:
+            contract_factor = self.options.first_factor
+        else:
+            contract_factor = self.options.second_factor
+
+        raise NotImplementedError("Refine hypercube not implemented!.")
+        pass
