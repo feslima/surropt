@@ -89,3 +89,28 @@ def point_domain_distance(p1: np.ndarray, p2: np.ndarray, lb: np.ndarray,
 
     return (pdist(np.vstack((p1, p2)), metric='euclidean') /
             pdist(np.vstack((lb, ub)), metric='euclidean')).item()
+
+
+def get_samples_index(x: np.ndarray, lb: np.ndarray, ub: np.ndarray):
+    """Get the indexes of `x` that are inside the hypercube bounded by `lb` and
+    `ub`.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Sample set (2D array).
+    lb : np.ndarray
+        Lower bound of hypercube (1D array).
+    ub : np.ndarray
+        Upper bound of hypercube (1D array).
+
+    Returns
+    -------
+    out : np.ndarray
+        Indexes (row numbers) of `x` that are between `lb` and `ub`.
+    """
+    idx, _ = np.nonzero(np.all(np.logical_and(np.less_equal(x, ub),
+                                              np.greater_equal(x, lb)),
+                               axis=1))
+
+    return idx
