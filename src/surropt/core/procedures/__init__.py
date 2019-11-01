@@ -184,7 +184,7 @@ class InfillProcedure(ABC):
                            f: np.ndarray, fun_evals: int) -> str:
         # search nearest points within r euclidian distance
         kdtree = cKDTree(data=x)
-        euc_dom_rng = norm(self.ub - self.ub, ord=2)
+        euc_dom_rng = norm(self.ub - self.lb, ord=2)
         neigh_idx = kdtree.query_ball_point(x=x[index, :], r=r*euc_dom_rng)
         results_msg = ("\nBest feasible value found: {0:8.4f} at point\n"
                        "x = {1}\n"
