@@ -212,6 +212,7 @@ class Caballero(InfillProcedure):
             else:
                 # couldn't improve from last iteration
                 xjk = self.refine()
+                x0 = deepcopy(xjk)
 
             # wheter or not to update kriging parameters after refinement phase
             optimize_hyp = True if self.j == 1 else False
