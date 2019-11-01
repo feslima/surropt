@@ -109,8 +109,8 @@ def get_samples_index(x: np.ndarray, lb: np.ndarray, ub: np.ndarray):
     out : np.ndarray
         Indexes (row numbers) of `x` that are between `lb` and `ub`.
     """
-    idx, _ = np.nonzero(np.all(np.logical_and(np.less_equal(x, ub),
-                                              np.greater_equal(x, lb)),
-                               axis=1))
+    idx = np.nonzero(np.all(np.logical_and(np.less_equal(x, ub),
+                                           np.greater_equal(x, lb)),
+                            axis=1))[0]
 
     return idx
