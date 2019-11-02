@@ -91,8 +91,8 @@ class InfillProcedure(ABC):
         if isinstance(value, NLPOptions):
             self._nlp_options = value
         else:
-            raise ValueError("'nlp_options' has to be a valid NLP options "
-                             "structure.")
+            raise ValueError("'nlp_options' has to be a valid NLP option "
+                             "instance.")
 
     @property
     def lb(self):
