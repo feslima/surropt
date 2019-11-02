@@ -6,7 +6,65 @@ __all__ = ["CaballeroOptions", "is_inside_hypercube"]
 
 
 class CaballeroOptions(ProcedureOptions):
-    # TODO: Document caballero procedure options __init__
+    """Options structure for the Caballero class algorithm.
+
+    Parameters
+    ----------
+    max_fun_evals : int, optional
+        Maximum number of black box function evaluations, by default 500.
+
+    feasible_tol : float, optional
+        Feasibility tolerance for the model constraints g(x) <= tol, by default
+        1e-06.
+
+    penalty_factor : float, optional
+        Value to penalize the objective function when its value returned by the
+        black box model indicates that is a infeasible result (note that by
+        infeasible it is referring to whether or not the sampling converged for
+        that case, not optimization feasibility), by default None.
+
+        See this property notes for more info.
+
+    ref_tol : float, optional
+        Refinement tolerance specification (tol1), by default 1e-4.
+
+    term_tol : float, optional
+        Termination tolerance specification (tol2), by default 1e-5. Has to be
+        lesser than `ref_tol`.
+
+    first_factor : float, optional
+        First contraction factor specification, by default 0.6. Has to be
+        between 0 and 1.
+
+    second_factor : float, optional
+        Subsequent contraction factor specification, by default 0.4. Has to be
+        between 0 and 1. Has to be lesser than `first_factor`.
+
+    contraction_tol : float, optional
+        Maximum contraction size that the refinement hypercube can achieve
+        when compared to the original domain, by default 1e-4.
+
+        See this property notes for more information.
+    """
+    @property
+    def penalty_factor(self):
+        """Value to penalize the objective function when its value returned by
+        the black box model indicates that is a infeasible result (note that
+        "infeasible result" it is referring to whether or not the sampling 
+        converged for that case, not constraint feasibility), by default None.
+
+        The value set for the penalty factor is simply summed to the objective
+        function value in order to make the optimization procedure avoid
+        sampling in the known infeasible regionself.
+
+        If this value is set to None, the procedure will automatically chose 
+        the highest value of the objective function in the initial sampling as
+        the penalty factor."""
+        return self._penalty_factor
+
+    @penalty_factor.setter
+    def penalty_factor(self, value):
+        self._penalty_factor = value
 
     @property
     def first_factor(self):
@@ -78,7 +136,11 @@ class CaballeroOptions(ProcedureOptions):
     @property
     def contraction_tol(self):
         """Maximum contraction size that the refinement hypercube can achieve
-        when compared to the original domain."""
+        when compared to the original domain.
+
+        The ratio between the current refined hypercube range and the original
+        domain range can't be lesser than `contraction_tol`. After the ratio
+        reaches this value, no more contractions will be perfomed."""
         return self._contraction_tol
 
     @contraction_tol.setter
@@ -95,15 +157,15 @@ class CaballeroOptions(ProcedureOptions):
 
     # -------------------------------------------------------------------------
     def __init__(self, max_fun_evals: int = 500, feasible_tol: float = 1e-06,
-                 nlp_solver: str = 'ipopt', penalty_factor: float = None,
+                 penalty_factor: float = None,
                  ref_tol: float = 1e-4, term_tol: float = 1e-5,
                  first_factor: float = 0.6, second_factor: float = 0.4,
                  contraction_tol: float = 1e-4):
 
         super().__init__(max_fun_evals=max_fun_evals,
-                         feasible_tol=feasible_tol,
-                         nlp_solver=nlp_solver)
+                         feasible_tol=feasible_tol)
 
+        self.penalty_factor = penalty_factor
         self.first_factor = first_factor
         self.second_factor = second_factor
         self.ref_tol = ref_tol
@@ -131,11 +193,14 @@ def is_inside_hypercube(point: np.ndarray, lb: np.ndarray, ub: np.ndarray,
     Parameters
     ----------
     point : np.ndarray
-        [description]
+        Point to be checked (1D array).
+
     lb : np.ndarray
-        [description]
+        Hypercube lower bound (1D array).
+
     ub : np.ndarray
-        [description]
+        Hypercube upper bound(1D array).
+
     tol : float, optional
         Tolerance value to accept whether or not `point` is at the limit.
         Default is 1e-8. (This value is a percentage of domain range.)
