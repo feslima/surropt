@@ -1,9 +1,14 @@
 import requests
+from requests.exceptions import ConnectionError
 from abc import ABC
 
 
 class NLPOptions(ABC):
-    # TODO: Document NLPOptions class
+    """Base (abstract) class for setting the NLP solver options.
+
+    All the NLP solvers settings have to be handled through this class and 
+    interfaced in the `optimize_nlp` function.
+    """
     @property
     def name(self):
         """The solver name."""
@@ -23,6 +28,18 @@ class NLPOptions(ABC):
 
 
 class DockerNLPOptions(NLPOptions):
+    """Solver options for when using IpOpt solver that is interfaced with a
+    flask application inside a Docker container or WSL enviroment.
+
+    Parameters
+    ----------
+    name : str
+        Custom name to the `NLPOptions` object (i.e. just a identifier, not 
+        used as check anywhere else.)
+
+    server_url : str
+        Ip address of the docker server.
+    """
     @property
     def server_url(self):
         """Ip address of the docker server."""
@@ -44,7 +61,12 @@ class DockerNLPOptions(NLPOptions):
         self.test_connection()
 
     def test_connection(self):
-        response = requests.get(self.server_url)
 
-        if response.status_code != 200:
+        try:
+            response = requests.get(self.server_url)
+        except ConnectionError:
             raise ValueError("Couldn't connect to the server URL provided.")
+        else:
+            if response.status_code != 200:
+                raise ValueError("Connection to the server established. "
+                                 "However, the server is unresponsive.")
