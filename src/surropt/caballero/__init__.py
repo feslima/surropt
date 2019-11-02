@@ -15,6 +15,63 @@ from .problem import CaballeroOptions, is_inside_hypercube
 
 
 class Caballero(InfillProcedure):
+    # TODO: (docstring) Add notes and example section. Also the optimization
+    # problem description
+    """Rigorous optimization of nonlinear programming problems (NLP) in which
+    the objective function and/or some constraints are represented by noisy
+    implicit black box functions. [1]_
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Input variables of the Design of Experiments (DOE). Has to be a 2D 
+        array, with no duplicated rows.
+
+    g : np.ndarray
+        Constraints values (:math:`g(x) <= 0`) of the DOE. Has to be a 2D array
+        with no duplicated rows.
+
+    f : np.ndarray
+        Objective function values of the DOE. Has to be a 1D array with no
+        duplicated values.
+
+    model_function : callable function
+        Black box function callable object that evaluates the objective and
+        constraints functions and returns them as dictionary object. See Notes
+        on how to implement such function.
+
+    lb : np.ndarray
+        Lower bound of the input variables. Has to be 1D array with the number
+        of elements being the same as the number of columns of `x`.
+
+    ub : np.ndarray
+        Upper bound of the input variables. Has to be 1D array with the number
+        of elements being the same as the number of columns of `x`.
+
+    regression : str
+        Kriging mean regression model. Valid values are: 'poly0', 'poly1' and
+        'poly2'.
+
+    options : CaballeroOptions, optional
+        Optimization procedure options. See `CaballeroOptions` for which
+        parameters can be tweaked. Default is None, where a default instance of
+        the options class is initialized. (The default values are described in
+        the class `CaballeroOptions`).
+
+    nlp_options : NLOPtions subclass, optional
+        NLP solver options structure. Default is None, where a default instance
+        of `DockerNLPOptions` is created with a server url pointing to the
+        localhost address through port 5000 in order to the optimization 
+        problem to be solved by a flask application inside a WSL (Windows 
+        Subsystem for Linux) environment. This application uses IpOpt solver.
+
+    References
+    ----------
+    .. [1] J. A. Caballero, I. E. Grossmann. "An Algorithm for the Use of 
+        Surrogate Models in Modular Flowsheet Optimization". AIChE journal, 
+        vol. 54.10 (2008), pp. 2633-2650, 2008.
+    """
+
     def __init__(self, x: np.ndarray, g: np.ndarray, f: np.ndarray,
                  model_function, lb: np.ndarray, ub: np.ndarray,
                  regression: str, options: CaballeroOptions = None,
@@ -26,8 +83,8 @@ class Caballero(InfillProcedure):
         options = CaballeroOptions() if options is None else options
 
         # proceed with default options for NLP solver as docker server
-        nlp_options = DockerNLPOptions(name='docker-server',
-                                       server_url='http://192.168.99.100:5000') \
+        nlp_options = DockerNLPOptions(name='wsl-server',
+                                       server_url='http://localhost:5000') \
             if nlp_options is None else nlp_options
 
         # initialize mother class
