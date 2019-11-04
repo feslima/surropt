@@ -2,13 +2,13 @@ import warnings
 from copy import deepcopy
 
 import numpy as np
-from colorama import Fore, Style, deinit, init
 from pydace import Dace
 from scipy.linalg import norm
 
 from ..core.nlp import optimize_nlp
 from ..core.options.nlp import DockerNLPOptions, NLPOptions
 from ..core.procedures import InfillProcedure
+from ..core.procedures.output import Report
 from ..core.utils import (get_samples_index, is_row_member,
                           point_domain_distance)
 from .problem import CaballeroOptions, is_inside_hypercube
@@ -65,6 +65,10 @@ class Caballero(InfillProcedure):
         problem to be solved by a flask application inside a WSL (Windows 
         Subsystem for Linux) environment. This application uses IpOpt solver.
 
+    report_options : Report (class or subclass), optional
+        How to report the optimization procedure progress. Whether to print in
+        terminal or plot each iteration. Default is set to print in terminal
+
     References
     ----------
     .. [1] J. A. Caballero, I. E. Grossmann. "An Algorithm for the Use of 
@@ -75,7 +79,8 @@ class Caballero(InfillProcedure):
     def __init__(self, x: np.ndarray, g: np.ndarray, f: np.ndarray,
                  model_function, lb: np.ndarray, ub: np.ndarray,
                  regression: str, options: CaballeroOptions = None,
-                 nlp_options: NLPOptions = None):
+                 nlp_options: NLPOptions = None,
+                 report_options: Report = None):
         # kriging regression model
         self.regression = regression
 
@@ -87,9 +92,14 @@ class Caballero(InfillProcedure):
                                        server_url='http://localhost:5000') \
             if nlp_options is None else nlp_options
 
+        # proceed with default options for procedure report output
+        report_options = Report(terminal=True, plot=False) \
+            if report_options is None else report_options
+
         # initialize mother class
         super().__init__(x=x, g=g, f=f, model_function=model_function, lb=lb,
-                         ub=ub, options=options, nlp_options=nlp_options)
+                         ub=ub, options=options, nlp_options=nlp_options,
+                         report_options=report_options)
 
         # perform a setup check
         self.check_setup()
@@ -222,8 +232,15 @@ class Caballero(InfillProcedure):
 
         # termination flag
         self.terminated = False
-        # colored font print
-        init()
+
+        # print headers if terminal is specified
+        rpt = self.report_options.print_iteration(iter_count=None,
+                                                  x=x0.tolist(),
+                                                  f_pred=None,
+                                                  f_actual=None,
+                                                  g_actual=None,
+                                                  color_font=None,
+                                                  header=True)
 
         while not self.terminated:
             sol = optimize_nlp(procedure=self, x=self._xlhs, g=self._gobs,
@@ -231,13 +248,6 @@ class Caballero(InfillProcedure):
                                x0=x0.tolist(), lb=self.lbopt.tolist(),
                                ub=self.ubopt.tolist())
             xjk, fjk, exitflag = sol['x'], sol['fval'], sol['exitflag']
-
-            if exitflag < 1:
-                print(Fore.RED + np.array2string(xjk, precision=4,
-                                                 separator='\t', sign=' '))
-            else:
-                print(Fore.RESET + np.array2string(xjk, precision=4,
-                                                   separator='\t', sign=' '))
 
             if self.fun_evals >= self.options.max_fun_evals:
                 warnings.warn("Maximum number of function evaluations "
@@ -247,11 +257,12 @@ class Caballero(InfillProcedure):
                 feas_idx = self.search_best_feasible_index(self._gobs,
                                                            self._fobs)
                 if feas_idx is not None:
-                    report_str = self.get_results_report(index=feas_idx,
-                                                         r=0.005, x=self._xlhs,
-                                                         f=self._fobs,
-                                                         fun_evals=self.fun_evals)
-                    print(report_str)
+                    rpt = self.report_options
+                    rpt.get_results_report(index=feas_idx,
+                                           r=0.005, x=self._xlhs,
+                                           f=self._fobs, lb=self.lb,
+                                           ub=self.ub,
+                                           fun_evals=self.fun_evals)
 
                 # break loop
                 self.terminated = True
@@ -266,6 +277,22 @@ class Caballero(InfillProcedure):
 
                 self.fun_evals += 1
 
+                # iteration display
+                if exitflag < 1:
+                    # infeasible
+                    color_font = 'red'
+                else:
+                    # feasible
+                    color_font = None
+
+                max_feas = np.max(sampled_results['g'])
+                self.report_options.print_iteration(iter_count=self.j,
+                                                    x=xjk.tolist(),
+                                                    f_pred=fjk,
+                                                    f_actual=sampled_results['f'],
+                                                    g_actual=max_feas,
+                                                    color_font=color_font)
+                self.report_options.plot_iteration()
             else:
                 # couldn't improve from last iteration
                 xjk = self.refine()
@@ -294,8 +321,6 @@ class Caballero(InfillProcedure):
                 xjk = self.refine()
                 x0 = deepcopy(xjk)
 
-        deinit()
-
     def sample_model(self, x: np.ndarray):
         sampled_data = self.model_function(x)
         f = sampled_data['f']
@@ -314,6 +339,7 @@ class Caballero(InfillProcedure):
         best_idx = self.search_best_feasible_index(g_ins, f_ins)
 
         if best_idx is not None:
+            # TODO: check for duplicated. If so, perform contraction on best
             self._xstar = np.vstack((self._xstar, x_ins[best_idx, :]))
             self._gstar = np.vstack((self._gstar, g_ins[best_idx, :]))
             self._fstar = np.append(self._fstar, f_ins[best_idx])
@@ -356,13 +382,14 @@ class Caballero(InfillProcedure):
             if self.contract_num > 0:
                 # if so, terminate the algorithm
                 if feas_idx is not None:
-                    report_str = self.get_results_report(index=feas_idx,
-                                                         r=0.005,
-                                                         x=self._xlhs,
-                                                         f=self._fobs,
-                                                         fun_evals=self.fun_evals)
-                    print(report_str)
-
+                    rpt = self.report_options
+                    rpt.get_results_report(index=feas_idx,
+                                           r=0.005,
+                                           x=self._xlhs,
+                                           f=self._fobs,
+                                           lb=self.lb,
+                                           ub=self.ub,
+                                           fun_evals=self.fun_evals)
                 # break loop
                 self.terminated = True
 
@@ -388,13 +415,9 @@ class Caballero(InfillProcedure):
                 # its inside hypercube, center and contract
                 self._perform_contraction(xstark, contract_factor, d_range)
 
-                print(Fore.YELLOW + '------------- Contract! -------------\n')
-
             else:
                 # its at hypercube limit, center and move
                 self._perform_move(xstark, d_range)
-
-                print(Fore.GREEN + '--------------- Move! ---------------\n')
 
         else:
             # at domain limit
@@ -404,13 +427,9 @@ class Caballero(InfillProcedure):
                 # its inside hypercube, center and contract
                 self._perform_contraction(xstark, contract_factor, d_range)
 
-                print(Fore.YELLOW + '------------- Contract! -------------\n')
-
             else:
                 # its at hypercube limit, center and move
                 self._perform_move(xstark, d_range)
-
-                print(Fore.GREEN + '--------------- Move! ---------------\n')
 
         # update optimization bounds and adjust them if needed
         self.lbopt = deepcopy(self.hlb)

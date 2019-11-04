@@ -8,6 +8,7 @@ from scipy.spatial import cKDTree
 from ..options import ProcedureOptions
 from ..options.nlp import NLPOptions
 from ..utils import _is_numeric_array_like
+from .output import Report
 
 
 class InfillProcedure(ABC):
@@ -120,10 +121,24 @@ class InfillProcedure(ABC):
         else:
             raise ValueError("'ub' has to be a numeric array.")
 
+    @property
+    def report_options(self):
+        """Optimization procedure options report (i.e. plot or return strings
+        containing info about the procedure iterations)"""
+        return self._report_options
+
+    @report_options.setter
+    def report_options(self, value):
+        if isinstance(value, Report):
+            self._report_options = value
+        else:
+            raise ValueError("'report_options' has to be a 'Report' object.")
+
     # -------------------------------------------------------------------------
     def __init__(self, x: np.ndarray, g: np.ndarray, f: np.ndarray,
                  model_function, lb: np.ndarray, ub: np.ndarray,
-                 options: ProcedureOptions, nlp_options: NLPOptions):
+                 options: ProcedureOptions, nlp_options: NLPOptions,
+                 report_options: Report):
         super().__init__()
 
         self.x = x
@@ -134,6 +149,7 @@ class InfillProcedure(ABC):
         self.ub = ub
         self.options = options
         self.nlp_options = nlp_options
+        self.report_options = report_options
 
     @abstractmethod
     def check_setup(self):
@@ -179,21 +195,3 @@ class InfillProcedure(ABC):
         """
 
         self.check_setup()
-
-    def get_results_report(self, index: int, r: float, x: np.ndarray,
-                           f: np.ndarray, fun_evals: int) -> str:
-        # search nearest points within r euclidian distance
-        kdtree = cKDTree(data=x)
-        euc_dom_rng = norm(self.ub - self.lb, ord=2)
-        neigh_idx = kdtree.query_ball_point(x=x[index, :], r=r*euc_dom_rng)
-        results_msg = ("\nBest feasible value found: {0:8.4f} at point\n"
-                       "x = {1}\n"
-                       "{2} points are within {3:.3%} euclidian range of this "
-                       "point based on original domain.\n"
-                       "Number of function evaluations: {4}")
-        return results_msg.format(f[index],
-                                  np.array2string(x[index, :],
-                                                  precision=4, separator='\t',
-                                                  sign=' '),
-                                  len(neigh_idx),
-                                  r, fun_evals)

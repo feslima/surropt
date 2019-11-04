@@ -65,7 +65,9 @@ class DockerNLPOptions(NLPOptions):
         try:
             response = requests.get(self.server_url)
         except ConnectionError:
-            raise ValueError("Couldn't connect to the server URL provided.")
+            raise ValueError("Couldn't connect to the server URL provided. "
+                             "Make sure that the optimization server is "
+                             "online and communicating properly.")
         else:
             if response.status_code != 200:
                 raise ValueError("Connection to the server established. "
