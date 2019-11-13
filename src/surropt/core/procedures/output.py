@@ -72,7 +72,8 @@ class Report(ABC):
         return arr_str
 
     def plot_iteration(self):
-        raise NotImplementedError("plot iteration not implemented!")
+        if self.plot:
+            raise NotImplementedError("plot iteration not implemented!")
 
     def get_results_report(self, index: int, r: float, x: np.ndarray,
                            f: np.ndarray, lb: np.ndarray, ub: np.ndarray,
