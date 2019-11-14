@@ -1,18 +1,15 @@
-import numpy as np
 import logging
 
-try:
-    import ipopt
-except ImportError:
-    HAS_IPOPT = False
-else:
-    HAS_IPOPT = True
+import numpy as np
 
-from surropt.caballero.problem import CaballeroProblem, objective_prediction, constraint_prediction
-from surropt.optimizers.utils import __check_vector_input, __set_options_structure, __empty_nonlcon, __bnd2cf, \
-    __qp_solve, __linesearch, __constraint_function_check, __objective_function_check
+from surropt.optimizers.utils import (__bnd2cf, __check_vector_input,
+                                      __constraint_function_check,
+                                      __empty_nonlcon, __linesearch,
+                                      __objective_function_check, __qp_solve,
+                                      __set_options_structure)
 from surropt.utils.matrixdivide import mrdivide
 from tests_ import OPTIMIZERS_PATH
+
 
 # module variables
 LOG_OFF = False  # flag to turn on loggin of iterations
@@ -25,70 +22,6 @@ logging.basicConfig(filename=OPTIMIZERS_PATH / "sqp_log.log",
                     format=LOG_FORMAT,
                     filemode='w')
 logger = logging.getLogger()
-
-
-def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray, lb: np.ndarray, ub: np.ndarray, solver=None):
-    """Optimization interface for several NLP solvers (e.g. IpOpt, SQP-active set, etc.).
-
-    Parameters
-    ----------
-    obj_surr : dict
-        Surrogate model structure of the objective function.
-    con_surr : list
-        List of surrogate models of the constraints functions.
-    x0 : ndarray
-        Initial estimate.
-    lb : ndarray
-        Lower bound of variables in the NLP problem.
-    ub : ndarray
-        Upper bound of variables in the NLP problem.
-    solver : str
-        Type of NLP solver to be used. Default is None, which corresponds to SQP active-set solver.
-
-    Returns
-    -------
-    out : tuple
-        Tuple of 3 elements containg the optimal solution (first), objective function value at solution (second) and
-        exit flag (third). The exit flag assumes two values: 0 for failure of convergence, 1 for success.
-    """
-
-    if HAS_IPOPT and solver == 'ipopt':
-        nlp = ipopt.problem(
-            n=x0.size,
-            m=len(con_surr),
-            problem_obj=CaballeroProblem(obj_surr, con_surr),
-            lb=lb,
-            ub=ub,
-            cl=-np.inf * np.ones(len(con_surr)),
-            cu=np.zeros(len(con_surr))
-        )
-
-        # ipopt options
-        nlp.addOption('tol', 1e-6)
-        nlp.addOption('constr_viol_tol', 1e-6)
-        nlp.addOption('hessian_approximation', 'limited-memory')
-        nlp.addOption('print_level', 0)
-        nlp.addOption('mu_strategy', 'adaptive')
-
-        x, info = nlp.solve(x0)
-        fval = info['obj_val']
-        exitflag = info['status']
-
-        if exitflag == 0 or exitflag == 1 or exitflag == 6:
-            exitflag = 1  # ipopt succeded
-        else:
-            exitflag = 0  # ipopt failed. See IpReturnCodes_inc.h for complete list of flags
-
-    elif solver is None or solver == 'sqp':
-        sol = sqp(lambda xv: objective_prediction(xv, obj_surr), x0,
-                  lambda xv: constraint_prediction(xv, con_surr), lb=lb, ub=ub)
-        x = sol['x']
-        fval = sol['fval']
-        exitflag = sol['exitflag']
-    else:
-        NotImplementedError("NLP solver not implemented.")
-
-    return x, fval, exitflag
 
 
 def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=None, options: dict = None):
@@ -337,14 +270,16 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
     # check input vectors x0, lb, ub
     x0, lb, ub = __check_vector_input(x0, lb, ub)
 
-    logger.debug("Initial estimate (x0) - " + np.array2string(x0, precision=4, separator=',', suppress_small=True))
+    logger.debug("Initial estimate (x0) - " + np.array2string(x0,
+                                                              precision=4, separator=',', suppress_small=True))
     logger.debug("Iter #\t|\tx_i\t|\tp_i\t|\tfval")
 
     # check the objective function
     __objective_function_check(objfun, x0)
 
     # check options dictionary
-    maxiter, maxfunevals, tolstep, tolopt, tolcon, qpsolver = __set_options_structure(options, x0)
+    maxiter, maxfunevals, tolstep, tolopt, tolcon, qpsolver = __set_options_structure(
+        options, x0)
 
     # check if any confun parameters is coming as None (withtout constraints) and make it a empty handle
     if confun is None:
@@ -362,7 +297,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
     ubgrad = ubgrad[ubidx, :]
 
     # Transform bounds into inequality constraints
-    confun = lambda xv, fun=confun: __bnd2cf(xv, lbidx, ubidx, lb, ub, np.vstack((lbgrad, ubgrad)), fun)
+    def confun(xv, fun=confun): return __bnd2cf(
+        xv, lbidx, ubidx, lb, ub, np.vstack((lbgrad, ubgrad)), fun)
 
     # global structure for parametrization
     globalls = {'nevals': 0}
@@ -414,7 +350,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
         # Solve the QP subproblem to compute the search direction p
         lambda_old = lambdav.copy()  # Store old multipliers
 
-        p, qpfval, qpexflag, lambdadict = __qp_solve(B, c, C, -ci, F, -ce, x0=np.array([]), solver=qpsolver)
+        p, qpfval, qpexflag, lambdadict = __qp_solve(
+            B, c, C, -ci, F, -ce, x0=np.array([]), solver=qpsolver)
 
         if qpexflag == 1:
             lambdav[:nr_f] = -lambdadict['eq']
@@ -424,7 +361,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
             p = x
 
         # Perform linesearch
-        x_new, alpha, obj_new, c_new, globalls = __linesearch(x, p, objfun, confun, lambdav, obj, c, globalls)
+        x_new, alpha, obj_new, c_new, globalls = __linesearch(
+            x, p, objfun, confun, lambdav, obj, c, globalls)
 
         # Re-evaluate objective, constraints and gradients at new x value
         ci_new, ce_new, C_new, F_new = confun(x_new)
@@ -460,7 +398,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
 
         delxt = delx[:, np.newaxis].conj().T
 
-        d1 = (delxt @ B @ delx).item()  # the item is to guarantee that the result is a scalar
+        # the item is to guarantee that the result is a scalar
+        d1 = (delxt @ B @ delx).item()
 
         t1 = 0.2 * d1
         t2 = delxt @ y
@@ -484,7 +423,8 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=N
 
         logger.debug("{0} |\t{1} |\t{2} |\t{3}".
                      format(iteration, np.array2string(x.flatten(), precision=4, separator=',', suppress_small=True),
-                            np.array2string(p.flatten(), precision=4, separator=',', suppress_small=True),
+                            np.array2string(
+                                p.flatten(), precision=4, separator=',', suppress_small=True),
                             obj
                             )
                      )
