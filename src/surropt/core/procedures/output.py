@@ -1,5 +1,4 @@
 import os
-from abc import ABC, abstractmethod
 
 import numpy as np
 from colorama import Fore, Style, deinit, init
@@ -7,7 +6,7 @@ from scipy.linalg import norm
 from scipy.spatial import cKDTree
 
 
-class Report(ABC):
+class Report:
     # TODO: write class documentation
     def __init__(self, terminal=False, plot=False):
         super().__init__()

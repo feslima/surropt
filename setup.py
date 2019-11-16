@@ -4,7 +4,7 @@ with open("README.md", 'r') as fh:
     long_description = fh.read()
 
 setup(name="surropt",
-      version='0.0.5',
+      version='0.0.6',
       description="Surrogate optimization toolbox for time consuming models",
       author="Felipe Souza Lima",
       author_email='feslima93@gmail.com',
