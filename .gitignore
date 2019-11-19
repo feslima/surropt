@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+=======
+# pipfile extensions
+pipfile
+pipfile.lock
+
+>>>>>>> d356e70b654615e865c3bfee18e85010a004a718
 # Pycharm folders
 .idea/
 

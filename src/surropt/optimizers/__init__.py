@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+<<<<<<< HEAD:surropt/optimizers/__init__.py
 
 from surropt.caballero.problem import (
     CaballeroProblem, constraint_prediction, objective_prediction)
@@ -19,6 +20,17 @@ except ImportError:
 else:
     HAS_IPOPT = True
 
+=======
+
+from surropt.optimizers.utils import (__bnd2cf, __check_vector_input,
+                                      __constraint_function_check,
+                                      __empty_nonlcon, __linesearch,
+                                      __objective_function_check, __qp_solve,
+                                      __set_options_structure)
+from surropt.utils.matrixdivide import mrdivide
+from tests_ import OPTIMIZERS_PATH
+>>>>>>> d356e70b654615e865c3bfee18e85010a004a718:src/surropt/optimizers/__init__.py
+
 
 # module variables
 LOG_OFF = False  # flag to turn on loggin of iterations
@@ -33,6 +45,7 @@ logging.basicConfig(filename=OPTIMIZERS_PATH / "sqp_log.log",
 logger = logging.getLogger()
 
 
+<<<<<<< HEAD:surropt/optimizers/__init__.py
 def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray,
                  lb: np.ndarray, ub: np.ndarray, solver=None):
     """Optimization interface for several NLP solvers (e.g. IpOpt, SQP-active
@@ -109,6 +122,9 @@ def optimize_nlp(obj_surr: dict, con_surr: list, x0: np.ndarray,
 
 def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None,
         ub=None, options: dict = None):
+=======
+def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None, ub=None, options: dict = None):
+>>>>>>> d356e70b654615e865c3bfee18e85010a004a718:src/surropt/optimizers/__init__.py
     """
     This SQP implementation is the one described by [1]_ and implemented in
     Octave optimization toolbox.
@@ -373,17 +389,27 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None,
     # check input vectors x0, lb, ub
     x0, lb, ub = __check_vector_input(x0, lb, ub)
 
+<<<<<<< HEAD:surropt/optimizers/__init__.py
     logger.debug("Initial estimate (x0) - " +
                  np.array2string(x0, precision=4, separator=',',
                                  suppress_small=True))
+=======
+    logger.debug("Initial estimate (x0) - " + np.array2string(x0,
+                                                              precision=4, separator=',', suppress_small=True))
+>>>>>>> d356e70b654615e865c3bfee18e85010a004a718:src/surropt/optimizers/__init__.py
     logger.debug("Iter #\t|\tx_i\t|\tp_i\t|\tfval")
 
     # check the objective function
     __objective_function_check(objfun, x0)
 
     # check options dictionary
+<<<<<<< HEAD:surropt/optimizers/__init__.py
     maxiter, maxfunevals, tolstep, tolopt, tolcon, qpsolver = \
         __set_options_structure(options, x0)
+=======
+    maxiter, maxfunevals, tolstep, tolopt, tolcon, qpsolver = __set_options_structure(
+        options, x0)
+>>>>>>> d356e70b654615e865c3bfee18e85010a004a718:src/surropt/optimizers/__init__.py
 
     # check if any confun parameters is coming as None (withtout constraints)
     # and make it a empty handle
@@ -402,9 +428,14 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None,
     ubgrad = ubgrad[ubidx, :]
 
     # Transform bounds into inequality constraints
+<<<<<<< HEAD:surropt/optimizers/__init__.py
     def confun(xv, fun=confun): return __bnd2cf(xv, lbidx, ubidx, lb, ub,
                                                 np.vstack((lbgrad, ubgrad)),
                                                 fun)
+=======
+    def confun(xv, fun=confun): return __bnd2cf(
+        xv, lbidx, ubidx, lb, ub, np.vstack((lbgrad, ubgrad)), fun)
+>>>>>>> d356e70b654615e865c3bfee18e85010a004a718:src/surropt/optimizers/__init__.py
 
     # global structure for parametrization
     globalls = {'nevals': 0}
@@ -532,6 +563,7 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None,
         B = B - mrdivide(B @ delx[:, np.newaxis] @ delxt @ B, d1) + \
             mrdivide(r[:, np.newaxis] @ r[:, np.newaxis].conj().T, d2)
 
+<<<<<<< HEAD:surropt/optimizers/__init__.py
         str_fmt = "{0} |\t{1} |\t{2} |\t{3}"
         x_str = np.array2string(x.flatten(), precision=4,
                                 separator=',', suppress_small=True)
@@ -539,6 +571,15 @@ def sqp(objfun: callable, x0: np.ndarray, confun: callable = None, lb=None,
                                 separator=',', suppress_small=True)
         logger.debug(str_fmt.format(iteration, x_str, p_str, obj))
 
+=======
+        logger.debug("{0} |\t{1} |\t{2} |\t{3}".
+                     format(iteration, np.array2string(x.flatten(), precision=4, separator=',', suppress_small=True),
+                            np.array2string(
+                                p.flatten(), precision=4, separator=',', suppress_small=True),
+                            obj
+                            )
+                     )
+>>>>>>> d356e70b654615e865c3bfee18e85010a004a718:src/surropt/optimizers/__init__.py
         # Update new values
         x = x_new
         obj = obj_new
