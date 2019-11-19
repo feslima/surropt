@@ -3,11 +3,13 @@ import numpy as np
 import ipopt
 from pydace import Dace
 
-def optimize_nlp(x0: list, lb: list, ub: list, surr_data: dict):
-    """Optimization interface for IpOpt use as Non Linear Problem (NLP) solver 
-    with surrogates models as functions of the NLP (both objective and 
+
+def optimize_nlp(x0: list, lb: list, ub: list, surr_data: dict,
+                 nlp_opts: dict):
+    """Optimization interface for IpOpt use as Non Linear Problem (NLP) solver
+    with surrogates models as functions of the NLP (both objective and
     contraints).
-    
+
     Parameters
     ----------
     x0 : list
@@ -18,7 +20,7 @@ def optimize_nlp(x0: list, lb: list, ub: list, surr_data: dict):
         Upper bound of the NLP's independent variables.
     surr_data : dict
         Dictionary contaning surrogate data to be constructed and optimized.
-    
+
     Returns
     -------
     sol : dict
@@ -97,22 +99,24 @@ def optimize_nlp(x0: list, lb: list, ub: list, surr_data: dict):
     con_surr = []
     for j in range(const_obs.shape[1]):
         con_surr_ph = Dace(regression=reg_model, correlation=cor_model)
-        con_surr_ph.fit(S=input_design, Y=const_obs[:, j], theta0=const_theta[j, :])
+        con_surr_ph.fit(S=input_design, Y=const_obs[:, j],
+                        theta0=const_theta[j, :])
         con_surr.append(con_surr_ph)
     # ------------------------------ Solver call ------------------------------
     nlp = ipopt.problem(
-            n=x0.size,
-            m=len(con_surr),
-            problem_obj=CaballeroProblem(obj_surr, con_surr),
-            lb=lb,
-            ub=ub,
-            cl=-np.inf * np.ones(len(con_surr)),
-            cu=np.zeros(len(con_surr))
-        )
+        n=x0.size,
+        m=len(con_surr),
+        problem_obj=CaballeroProblem(obj_surr, con_surr),
+        lb=lb,
+        ub=ub,
+        cl=-np.inf * np.ones(len(con_surr)),
+        cu=np.zeros(len(con_surr))
+    )
 
     # ipopt options
-    nlp.addOption('tol', 1e-6)
-    nlp.addOption('constr_viol_tol', 1e-6)
+    nlp.addOption('tol', nlp_opts['tol'])
+    nlp.addOption('constr_viol_tol', nlp_opts['con_tol'])
+    nlp.addOption('max_iter', nlp_opts['max_iter'])
     nlp.addOption('hessian_approximation', 'limited-memory')
     nlp.addOption('print_level', 0)
     nlp.addOption('mu_strategy', 'adaptive')
@@ -130,8 +134,10 @@ def optimize_nlp(x0: list, lb: list, ub: list, surr_data: dict):
 
     return {'x': x.tolist(), 'fval': fval, 'exitflag': exitflag}
 
+
 class CaballeroProblem(object):
     """Class problem interface for IpOpt use."""
+
     def __init__(self, obj_surrogate: dict, con_surrogate: list):
         self._obj_surr = obj_surrogate
         self._con_surr = con_surrogate
@@ -163,25 +169,28 @@ class CaballeroProblem(object):
 
         return gc
 
+
 # ------------------------ Flask server ------------------------
 app = Flask(__name__)
+
 
 @app.route('/')
 def hello_world():
     return "Hey! I'm running from Flask in a Docker container!"
 
+
 @app.route('/opt', methods=['POST'])
 def optimize():
     if request.headers['Content-Type'] == 'application/json':
         dic_json = request.get_json()
-        
+
         x0 = dic_json['x0']
         lb = dic_json['lb']
         ub = dic_json['ub']
         surr_data = dic_json['surr_data']
-        
+
         sol = optimize_nlp(x0=x0, lb=lb, ub=ub, surr_data=surr_data)
-        
+
         return json.dumps(sol)
 
 

@@ -24,7 +24,7 @@ class Caballero(InfillProcedure):
     Parameters
     ----------
     x : np.ndarray
-        Input variables of the Design of Experiments (DOE). Has to be a 2D 
+        Input variables of the Design of Experiments (DOE). Has to be a 2D
         array, with no duplicated rows.
 
     g : np.ndarray
@@ -61,8 +61,8 @@ class Caballero(InfillProcedure):
     nlp_options : NLOPtions subclass, optional
         NLP solver options structure. Default is None, where a default instance
         of `DockerNLPOptions` is created with a server url pointing to the
-        localhost address through port 5000 in order to the optimization 
-        problem to be solved by a flask application inside a WSL (Windows 
+        localhost address through port 5000 in order to the optimization
+        problem to be solved by a flask application inside a WSL (Windows
         Subsystem for Linux) environment. This application uses IpOpt solver.
 
     report_options : Report (class or subclass), optional
@@ -71,8 +71,8 @@ class Caballero(InfillProcedure):
 
     References
     ----------
-    .. [1] J. A. Caballero, I. E. Grossmann. "An Algorithm for the Use of 
-        Surrogate Models in Modular Flowsheet Optimization". AIChE journal, 
+    .. [1] J. A. Caballero, I. E. Grossmann. "An Algorithm for the Use of
+        Surrogate Models in Modular Flowsheet Optimization". AIChE journal,
         vol. 54.10 (2008), pp. 2633-2650, 2008.
     """
 

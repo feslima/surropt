@@ -38,10 +38,18 @@ def optimize_nlp(procedure: InfillProcedure, x: np.ndarray, g: np.ndarray,
             'corrmodel': 'corrgauss'
         }
 
+        # ipopt options
+        nlp_opts = {
+            'tol': nlp_options.tol,
+            'max_iter': nlp_options.max_iter,
+            'con_tol': nlp_options.con_tol
+        }
+
         dic = {'x0': x0,
                'lb': lb,
                'ub': ub,
-               'surr_data': surr_data}
+               'surr_data': surr_data,
+               'nlp_opts': nlp_opts}
 
         # send data to server and return the nlp solution
         response = requests.post(url=nlp_options.server_url + '/opt', json=dic)
