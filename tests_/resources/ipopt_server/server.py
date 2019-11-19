@@ -188,8 +188,10 @@ def optimize():
         lb = dic_json['lb']
         ub = dic_json['ub']
         surr_data = dic_json['surr_data']
+        nlp_opts = dic_json['nlp_opts']
 
-        sol = optimize_nlp(x0=x0, lb=lb, ub=ub, surr_data=surr_data)
+        sol = optimize_nlp(x0=x0, lb=lb, ub=ub,
+                           surr_data=surr_data, nlp_opts=nlp_opts)
 
         return json.dumps(sol)
 

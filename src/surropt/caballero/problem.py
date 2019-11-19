@@ -1,8 +1,51 @@
+import os
+
 import numpy as np
+from colorama import Fore, Style, deinit, init
 
 from ..core.options import ProcedureOptions
+from ..core.procedures.output import Report
 
-__all__ = ["CaballeroOptions", "is_inside_hypercube"]
+__all__ = ["CaballeroOptions", "is_inside_hypercube", "CaballeroReport"]
+
+
+class CaballeroReport(Report):
+    """Report class specifically for caballero procedure only.
+    """
+
+    def __init__(self, terminal=False, plot=False):
+        super().__init__(terminal=terminal, plot=plot)
+
+    def print_iteration(self, movement: str, iter_count: int, x: list,
+                        f_pred: float, f_actual: float, g_actual: float,
+                        header=False, color_font=None):
+        n_x = len(x)
+
+        if header:
+            mv_header = [" x" + str(i + 1) for i in range(n_x)]
+            str_arr = ['Last move', 'Iter'] + mv_header + \
+                ['f_pred', 'f_actual', 'feasibility']
+            arr_str = ("{:12}\t"*len(str_arr)).format(*str_arr)
+            # arr_str = "{0:^10s}".format(''.join(map(str, str_arr)))
+
+        else:
+            i = str(iter_count)
+            mv_arr = np.array(x)
+            num_arr = np.append(x, np.array([f_pred, f_actual, g_actual]))
+            formatter = {'float_kind': lambda x: '{0: 12.4e}'.format(x)}
+            str_arr = np.array2string(num_arr, separator='\t',
+                                      max_line_width=os.get_terminal_size()[0],
+                                      formatter=formatter)[1:-1]
+            arr_str = "{0:12}\t{1:12}\t{2}".format(movement, i, str_arr)
+
+        if self.terminal:
+            # terminal print asked, check for font color
+            if color_font == 'red':
+                print(Fore.RED + arr_str)
+            else:
+                print(Fore.RESET + arr_str)
+
+        return arr_str
 
 
 class CaballeroOptions(ProcedureOptions):
@@ -50,14 +93,14 @@ class CaballeroOptions(ProcedureOptions):
     def penalty_factor(self):
         """Value to penalize the objective function when its value returned by
         the black box model indicates that is a infeasible result (note that
-        "infeasible result" it is referring to whether or not the sampling 
+        "infeasible result" it is referring to whether or not the sampling
         converged for that case, not constraint feasibility), by default None.
 
         The value set for the penalty factor is simply summed to the objective
         function value in order to make the optimization procedure avoid
         sampling in the known infeasible regionself.
 
-        If this value is set to None, the procedure will automatically chose 
+        If this value is set to None, the procedure will automatically chose
         the highest value of the objective function in the initial sampling as
         the penalty factor."""
         return self._penalty_factor

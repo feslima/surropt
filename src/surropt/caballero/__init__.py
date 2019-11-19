@@ -11,7 +11,7 @@ from ..core.procedures import InfillProcedure
 from ..core.procedures.output import Report
 from ..core.utils import (get_samples_index, is_row_member,
                           point_domain_distance)
-from .problem import CaballeroOptions, is_inside_hypercube
+from .problem import CaballeroOptions, CaballeroReport, is_inside_hypercube
 
 
 class Caballero(InfillProcedure):
@@ -93,7 +93,7 @@ class Caballero(InfillProcedure):
             if nlp_options is None else nlp_options
 
         # proceed with default options for procedure report output
-        report_options = Report(terminal=True, plot=False) \
+        report_options = CaballeroReport(terminal=True, plot=False) \
             if report_options is None else report_options
 
         # initialize mother class
@@ -233,8 +233,12 @@ class Caballero(InfillProcedure):
         # termination flag
         self.terminated = False
 
+        # movement flag
+        self._last_move = 'None'
+
         # print headers if terminal is specified
-        rpt = self.report_options.print_iteration(iter_count=None,
+        rpt = self.report_options.print_iteration(movement=self._last_move,
+                                                  iter_count=None,
                                                   x=x0.tolist(),
                                                   f_pred=None,
                                                   f_actual=None,
@@ -267,6 +271,11 @@ class Caballero(InfillProcedure):
                 # break loop
                 self.terminated = True
 
+                # store results as class variables
+                self.xopt = self._xlhs[feas_idx, :].flatten()
+                self.gopt = self._gobs[feas_idx, :].flatten()
+                self.fopt = self._fobs[feas_idx]
+
             if not is_row_member(xjk, self._xlhs):
                 sampled_results = self.sample_model(xjk)
 
@@ -286,7 +295,8 @@ class Caballero(InfillProcedure):
                     color_font = None
 
                 max_feas = np.max(sampled_results['g'])
-                self.report_options.print_iteration(iter_count=self.j,
+                self.report_options.print_iteration(movement=self._last_move,
+                                                    iter_count=self.j,
                                                     x=xjk.tolist(),
                                                     f_pred=fjk,
                                                     f_actual=sampled_results['f'],
@@ -393,6 +403,11 @@ class Caballero(InfillProcedure):
                 # break loop
                 self.terminated = True
 
+                # store results as class variables
+                self.xopt = self._xlhs[feas_idx, :].flatten()
+                self.gopt = self._gobs[feas_idx, :].flatten()
+                self.fopt = self._fobs[feas_idx]
+
             else:
                 # perform a large contraction if no contraction done
                 self.refine_hypercube(xstark, contract_factor=0.9999)
@@ -462,9 +477,13 @@ class Caballero(InfillProcedure):
         self._gobs = np.vstack((self.g, g_ins[idx, :]))
         self._fobs = np.append(self.f, f_ins[idx])
 
+        self._last_move = 'Contraction'
+
     def _perform_move(self, xstark, d_range):
         red_factor = d_range / 2
         self.hlb = xstark - red_factor
         self.hub = xstark + red_factor
 
         self.move_num += 1
+
+        self._last_move = 'Movement'

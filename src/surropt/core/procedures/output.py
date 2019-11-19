@@ -45,7 +45,7 @@ class Report:
 
         if header:
             mv_header = [" x" + str(i + 1) for i in range(n_x)]
-            str_arr = ['Movement', 'Iter'] + mv_header + \
+            str_arr = ['Iter'] + mv_header + \
                 ['f_pred', 'f_actual', 'feasibility']
             arr_str = ("{:10}\t"*len(str_arr)).format(*str_arr)
             # arr_str = "{0:^10s}".format(''.join(map(str, str_arr)))
@@ -58,8 +58,7 @@ class Report:
             str_arr = np.array2string(num_arr, separator='\t',
                                       max_line_width=os.get_terminal_size()[0],
                                       formatter=formatter)[1:-1]
-            mov = 'test'  # placeholder variable for movement type
-            arr_str = "{0:10}\t{1:10}\t{2}".format(mov, i, str_arr)
+            arr_str = "{1:10}\t{2}".format(i, str_arr)
 
         if self.terminal:
             # terminal print asked, check for font color
