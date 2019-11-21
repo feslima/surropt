@@ -1,12 +1,14 @@
 import os
+from abc import ABC, abstractmethod
+from string import Template
 
 import numpy as np
-from colorama import Fore, Style, deinit, init
+from colorama import Fore
 from scipy.linalg import norm
 from scipy.spatial import cKDTree
 
 
-class Report:
+class Report(ABC):
     # TODO: write class documentation
     def __init__(self, terminal=False, plot=False):
         super().__init__()
@@ -38,36 +40,44 @@ class Report:
         else:
             raise ValueError("'plot' property only accepts True or False.")
 
-    def print_iteration(self, iter_count: int, x: list, f_pred: float,
-                        f_actual: float, g_actual: float, header=False,
-                        color_font=None):
+    def build_iter_report(self, iter_count: int, x: list, f_pred: float,
+                          f_actual: float, g_actual: float,
+                          header=False, field_size: int = 10) -> str:
+        # builds the string report for the current iteration. To integrate the
+        # optimization procedure in other applicatins, you can extend
+        # (override) this function.
         n_x = len(x)
 
         if header:
             mv_header = [" x" + str(i + 1) for i in range(n_x)]
+            hd_temp = Template("{:$f_size}\t").substitute(f_size=field_size)
             str_arr = ['Iter'] + mv_header + \
                 ['f_pred', 'f_actual', 'feasibility']
-            arr_str = ("{:10}\t"*len(str_arr)).format(*str_arr)
-            # arr_str = "{0:^10s}".format(''.join(map(str, str_arr)))
+            arr_str = (hd_temp*len(str_arr)).format(*str_arr)
 
         else:
             i = str(iter_count)
             mv_arr = np.array(x)
             num_arr = np.append(x, np.array([f_pred, f_actual, g_actual]))
-            formatter = {'float_kind': lambda x: '{0: 10.4e}'.format(x)}
+            f_temp = Template("{0: $f_size.4e}").substitute(f_size=field_size)
+            formatter = {
+                'float_kind': lambda x: f_temp.format(x)
+            }
             str_arr = np.array2string(num_arr, separator='\t',
                                       max_line_width=os.get_terminal_size()[0],
                                       formatter=formatter)[1:-1]
-            arr_str = "{1:10}\t{2}".format(i, str_arr)
-
-        if self.terminal:
-            # terminal print asked, check for font color
-            if color_font == 'red':
-                print(Fore.RED + arr_str)
-            else:
-                print(Fore.RESET + arr_str)
+            arr_temp = Template("{0:$f_size}\t{1}").substitute(
+                f_size=field_size)
+            arr_str = arr_temp.format(i, str_arr)
 
         return arr_str
+
+    @abstractmethod
+    def print_iteration(self, iter_count: int, x: list, f_pred: float,
+                        f_actual: float, g_actual: float, header=False,
+                        field_size: int = 10, color_font=None) -> None:
+        # you have to override this function
+        pass
 
     def plot_iteration(self):
         if self.plot:

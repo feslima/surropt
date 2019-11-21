@@ -1,4 +1,5 @@
 import os
+from string import Template
 
 import numpy as np
 from colorama import Fore, Style, deinit, init
@@ -16,36 +17,39 @@ class CaballeroReport(Report):
     def __init__(self, terminal=False, plot=False):
         super().__init__(terminal=terminal, plot=plot)
 
+    def build_iter_report(self, movement: str, iter_count: int, x: list,
+                          f_pred: float, f_actual: float, g_actual: float,
+                          header=False, field_size: int = 12):
+        arr_str = super().build_iter_report(iter_count=iter_count, x=x,
+                                            f_pred=f_pred, f_actual=f_actual,
+                                            g_actual=g_actual, header=header,
+                                            field_size=field_size)
+        mv_temp = Template("{:$f_size}\t").substitute(f_size=field_size)
+
+        # concatentate movement and iteration string report
+        if header:
+            mv_str = 'Last move'
+        else:
+            mv_str = movement
+
+        return mv_temp.format(mv_str) + arr_str
+
     def print_iteration(self, movement: str, iter_count: int, x: list,
                         f_pred: float, f_actual: float, g_actual: float,
-                        header=False, color_font=None):
-        n_x = len(x)
+                        header=False, field_size: int = 12, color_font=None):
 
-        if header:
-            mv_header = [" x" + str(i + 1) for i in range(n_x)]
-            str_arr = ['Last move', 'Iter'] + mv_header + \
-                ['f_pred', 'f_actual', 'feasibility']
-            arr_str = ("{:12}\t"*len(str_arr)).format(*str_arr)
-            # arr_str = "{0:^10s}".format(''.join(map(str, str_arr)))
-
-        else:
-            i = str(iter_count)
-            mv_arr = np.array(x)
-            num_arr = np.append(x, np.array([f_pred, f_actual, g_actual]))
-            formatter = {'float_kind': lambda x: '{0: 12.4e}'.format(x)}
-            str_arr = np.array2string(num_arr, separator='\t',
-                                      max_line_width=os.get_terminal_size()[0],
-                                      formatter=formatter)[1:-1]
-            arr_str = "{0:12}\t{1:12}\t{2}".format(movement, i, str_arr)
+        arr_str = self.build_iter_report(movement=movement,
+                                         iter_count=iter_count, x=x,
+                                         f_pred=f_pred, f_actual=f_actual,
+                                         g_actual=g_actual, header=header,
+                                         field_size=field_size)
 
         if self.terminal:
-            # terminal print asked, check for font color
+            # terminal asked, check font color
             if color_font == 'red':
                 print(Fore.RED + arr_str)
             else:
                 print(Fore.RESET + arr_str)
-
-        return arr_str
 
 
 class CaballeroOptions(ProcedureOptions):
