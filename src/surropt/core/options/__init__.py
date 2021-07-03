@@ -38,7 +38,7 @@ class ProcedureOptions(ABC):
                                  "value.")
 
         else:
-            raise ("'feasible_tol' has to be a float.")
+            raise TypeError("'feasible_tol' has to be a float.")
 
     # -------------------------------------------------------------------------
 
