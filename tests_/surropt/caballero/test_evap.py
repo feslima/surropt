@@ -1,11 +1,12 @@
+from surropt.caballero.problem import CaballeroReport
+from surropt.core.options.nlp import DockerNLPOptions, IpOptOptions
+from pathlib import Path
 import numpy as np
 from scipy.io import loadmat
 
 from surropt.utils.models import evaporator
 from surropt.caballero import Caballero
-from tests_ import RESOURCES_PATH
-from surropt.core.options.nlp import DockerNLPOptions, IpOptOptions
-from surropt.caballero.problem import CaballeroReport
+RESOURCES_PATH = Path(__file__).parents[2] / 'resources'
 
 
 def main():

@@ -8,6 +8,7 @@ To install the module in develop moode, first you need to setup an environment w
 - Numpy >= 1.15.0
 - pyDOE2 >= 1.2
 - pydace >= 0.1.1
+- cyipopt >= 1.0.3
 
 Having these installed, open a terminal window, navigate to the folder where the setup.py file is located and execute the following command:
 ```

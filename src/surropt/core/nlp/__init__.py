@@ -1,7 +1,7 @@
 import json
 from abc import ABC, abstractmethod
 
-import ipopt
+import cyipopt
 import numpy as np
 import requests
 from pydace import Dace
@@ -85,7 +85,7 @@ def optimize_nlp(procedure: InfillProcedure, x: np.ndarray, g: np.ndarray,
             con_surr.append(con_surr_ph)
 
         # ------------------------------ Solver call ------------------------------
-        nlp = ipopt.problem(
+        nlp = cyipopt.problem(
             n=x0.size,
             m=len(con_surr),
             problem_obj=CaballeroProblem(obj_surr, con_surr),
