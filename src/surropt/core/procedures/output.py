@@ -1,4 +1,3 @@
-import os
 from abc import ABC, abstractmethod
 from string import Template
 
@@ -42,7 +41,8 @@ class Report(ABC):
 
     def build_iter_report(self, iter_count: int, x: list, f_pred: float,
                           f_actual: float, g_actual: float,
-                          header=False, field_size: int = 10) -> str:
+                          header=False, field_size: int = 10,
+                          buffer_width: int = 80) -> str:
         # builds the string report for the current iteration. To integrate the
         # optimization procedure in other applicatins, you can extend
         # (override) this function.
@@ -64,7 +64,7 @@ class Report(ABC):
                 'float_kind': lambda x: f_temp.format(x)
             }
             str_arr = np.array2string(num_arr, separator='\t',
-                                      max_line_width=os.get_terminal_size()[0],
+                                      max_line_width=buffer_width,
                                       formatter=formatter)[1:-1]
             arr_temp = Template("{0:$f_size}\t{1}").substitute(
                 f_size=field_size)
