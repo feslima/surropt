@@ -14,6 +14,8 @@ packages = [{ include = "surropt", from = "src" }]
 exclude = ["*.tests", "*.tests.*", "tests.*", "tests"]
 
 [tool.poetry.dependencies]
+# TODO: add cyipopt to dependencies when this issue is solved
+# https://github.com/mechmotum/cyipopt/issues/110
 python = "^3.5"
 numpy = "^1.15.0"
 scipy = "^1.2.0"
@@ -24,6 +26,7 @@ colorama = "^0.4.1"
 
 [tool.poetry.dev-dependencies]
 autopep8 = "^"
+poetry2setup = "^1.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

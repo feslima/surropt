@@ -7,12 +7,12 @@ To install the module in develop moode, first you need to setup an environment w
 - SciPy >= 1.2.0
 - Numpy >= 1.15.0
 - pyDOE2 >= 1.2
-- pydace >= 0.1.1
+- pydace >= 0.1.3
 - cyipopt >= 1.0.3
 
 Having these installed, open a terminal window, navigate to the folder where the setup.py file is located and execute the following command:
 ```
-$python setup.py develop
+$python setup.py install
 ```
 
 After this you are ready to use the package via python command line.
