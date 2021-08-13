@@ -85,7 +85,7 @@ def optimize_nlp(procedure: InfillProcedure, x: np.ndarray, g: np.ndarray,
             con_surr.append(con_surr_ph)
 
         # ------------------------------ Solver call ------------------------------
-        nlp = cyipopt.problem(
+        nlp = cyipopt.Problem(
             n=x0.size,
             m=len(con_surr),
             problem_obj=CaballeroProblem(obj_surr, con_surr),
@@ -96,12 +96,12 @@ def optimize_nlp(procedure: InfillProcedure, x: np.ndarray, g: np.ndarray,
         )
 
         # ipopt options
-        nlp.addOption('tol', nlp_options.tol)
-        nlp.addOption('constr_viol_tol', nlp_options.con_tol)
-        nlp.addOption('max_iter', nlp_options.max_iter)
-        nlp.addOption('hessian_approximation', 'limited-memory')
-        nlp.addOption('print_level', 0)
-        nlp.addOption('mu_strategy', 'adaptive')
+        nlp.add_option('tol', nlp_options.tol)
+        nlp.add_option('constr_viol_tol', nlp_options.con_tol)
+        nlp.add_option('max_iter', nlp_options.max_iter)
+        nlp.add_option('hessian_approximation', 'limited-memory')
+        nlp.add_option('print_level', 0)
+        nlp.add_option('mu_strategy', 'adaptive')
 
         x, info = nlp.solve(x0)
         fval = info['obj_val']
