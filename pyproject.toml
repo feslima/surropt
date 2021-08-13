@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "surropt"
-version = "0.0.11"
+version = "0.0.12"
 description = "Surrogate optimization toolbox for time consuming models"
 authors = ["Felipe Souza Lima <feslima93@gmail.com>"]
 license = "Apache-2.0"
